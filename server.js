@@ -4,6 +4,7 @@ const http = require('http');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const socketio = require('socket.io');
+const helmet = require('helmet');
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const messagesRoutes = require('./routes/messages');
@@ -23,7 +24,7 @@ const sessionRoutes = require('./routes/sessions')
 const aiRoutes = require('./routes/ai');
 const faqRoutes = require('./routes/faq');
 const questionRoutes = require('./routes/questions');
-const data = require('./config/db')
+const mongoose = require("mongoose");
 const app = express();
 const path = require('path');
 const fs = require('fs');
@@ -40,9 +41,14 @@ uploadDirs.forEach(dir => {
 const io = socketio(server);
 
 // connect DB
-data();
+mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => console.log("MongoDB connecté ✅"))
+  .catch(err => console.log("Erreur MongoDB ❌", err));
 
 // middlewares
+app.use(helmet({
+  contentSecurityPolicy: false, // On désactive pour éviter de bloquer les styles du navigateur pendant le dev
+}));
 app.use(cors({
   origin: true,
   credentials: true
@@ -57,6 +63,11 @@ app.use('/uploads/temp', express.static(path.join(__dirname, 'uploads', 'temp'))
 app.use('/uploads/news', express.static(path.join(__dirname, 'uploads', 'news')));
 app.use('/uploads/events', express.static(path.join(__dirname, 'uploads', 'events')));
 app.use('/uploads/resources', express.static(path.join(__dirname, 'uploads', 'resources')));
+
+// Route racine
+app.get('/', (req, res) => {
+  res.send('<h1>Bienvenue sur le Backend de Mentora GN</h1><p>Le serveur est opérationnel.</p>');
+});
 
 // Route de test
 app.get('/api/test', (req, res) => {
@@ -178,7 +189,8 @@ io.on('connection', (socket) => {
   });
 });
 
-const PORT = process.env.PORT;
+const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`Le serveur est lancer avec succès ${PORT}`);
+  console.log(`Serveur démarré sur le port ${PORT}`);
 });
