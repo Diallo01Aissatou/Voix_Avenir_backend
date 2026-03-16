@@ -18,7 +18,7 @@ exports.createTestimonial = async (req, res) => {
     });
 
     await testimonial.save();
-    
+
     const populatedTestimonial = await Testimonial.findById(testimonial._id)
       .populate('author', 'name photo profession');
 
@@ -47,7 +47,8 @@ exports.getTestimonials = async (req, res) => {
     const testimonialsWithPhotoUrl = mentoreesTestimonials.map(testimonial => {
       const testimonialObj = testimonial.toObject();
       if (testimonialObj.author?.photo && !testimonialObj.author.photo.startsWith('http')) {
-        testimonialObj.author.photo = `http://localhost:5001/uploads/${testimonialObj.author.photo.split('/').pop()}`;
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        testimonialObj.author.photo = `${baseUrl}/uploads/${testimonialObj.author.photo.split('/').pop()}`;
       }
       return testimonialObj;
     });
@@ -62,12 +63,12 @@ exports.getTestimonials = async (req, res) => {
 exports.getMyTestimonials = async (req, res) => {
   try {
     const userId = req.user._id;
-    
+
     // Vérifier que l'utilisateur est une mentorée
     if (req.user.role !== 'mentoree') {
       return res.status(403).json({ message: 'Seules les mentorées peuvent voir leurs témoignages' });
     }
-    
+
     const testimonials = await Testimonial.find({ author: userId })
       .populate('author', 'name photo profession')
       .sort({ createdAt: -1 });

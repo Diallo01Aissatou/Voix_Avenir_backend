@@ -68,7 +68,7 @@ exports.register = async (req, res) => {
       console.error('Erreur de connexion à la base de données:', dbError.message);
       return res.status(500).json({ message: "Erreur de connexion à la base de données. Vérifiez que MongoDB est démarré." });
     }
-    
+
     if (existingUser) {
       return res.status(400).json({ message: "Adresse e-mail déjà utilisée" });
     }
@@ -77,17 +77,17 @@ exports.register = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Transformer interests et expertise en tableaux si ce sont des chaînes
- const parseToArray = (value) => {
-  if (!value) return []; // si undefined/null → tableau vide
-  if (Array.isArray(value)) return value; // si déjà tableau → on garde
-  if (typeof value === "string") {
-    return value.split(",").map((v) => v.trim()); // si string → on découpe
-  }
-  return []; // cas par défaut
-};
+    const parseToArray = (value) => {
+      if (!value) return []; // si undefined/null → tableau vide
+      if (Array.isArray(value)) return value; // si déjà tableau → on garde
+      if (typeof value === "string") {
+        return value.split(",").map((v) => v.trim()); // si string → on découpe
+      }
+      return []; // cas par défaut
+    };
 
-const interestsArray = parseToArray(interests);
-const expertiseArray = parseToArray(expertise);
+    const interestsArray = parseToArray(interests);
+    const expertiseArray = parseToArray(expertise);
 
 
     // Préparer les données de l'utilisateur
@@ -106,7 +106,7 @@ const expertiseArray = parseToArray(expertise);
     };
 
     // Enregistrer la photo si fournie (diskStorage)
-     if (req.file) {
+    if (req.file) {
       userPayload.photo = `/uploads/${req.file.filename}`;
     }
 
@@ -124,7 +124,7 @@ const expertiseArray = parseToArray(expertise);
 
     // Envoyer le token + message de succès
     sendTokenInCookie(res, newUser, "Inscription réussie");
-    
+
 
   } catch (err) {
     console.error(err);
@@ -172,7 +172,7 @@ exports.logout = (req, res) => {
 exports.forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
-    
+
     if (!email) {
       return res.status(400).json({ message: "Adresse email requise" });
     }
@@ -189,12 +189,13 @@ exports.forgotPassword = async (req, res) => {
     await user.save({ validateBeforeSave: false });
 
     // URL de réinitialisation
-    const resetUrl = `http://localhost:5173?page=reset-password&token=${resetToken}`;
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    const resetUrl = `${baseUrl.replace('5001', '5173')}?page=reset-password&token=${resetToken}`;
 
     // Configuration Gmail SMTP
     console.log('Tentative d\'envoi email à:', user.email);
     console.log('Depuis:', process.env.EMAIL_USERS);
-    
+
     try {
       const transporter = nodemailer.createTransport({
         service: 'gmail',
@@ -223,9 +224,9 @@ exports.forgotPassword = async (req, res) => {
           </div>
         `
       });
-      
+
       console.log('Email envoyé avec succès:', mailResult.messageId);
-      
+
       res.status(200).json({
         message: "Email de réinitialisation envoyé avec succès à " + user.email
       });
@@ -291,7 +292,7 @@ exports.resetPassword = async (req, res) => {
 exports.createAdmin = async (req, res) => {
   try {
     const { name, email, password } = req.body;
-    
+
     if (!name || !email || !password) {
       return res.status(400).json({ message: "Champs obligatoires manquants" });
     }

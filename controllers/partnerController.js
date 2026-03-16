@@ -4,7 +4,15 @@ const Partner = require('../models/Partner');
 exports.getPartners = async (req, res) => {
   try {
     const partners = await Partner.find({ isActive: true }).sort({ createdAt: -1 });
-    res.json(partners);
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    const partnersWithUrl = partners.map(partner => {
+      const p = partner.toObject();
+      if (p.logo && p.logo.startsWith('/uploads')) {
+        p.logo = `${baseUrl}${p.logo}`;
+      }
+      return p;
+    });
+    res.json(partnersWithUrl);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -25,7 +33,7 @@ exports.createPartner = async (req, res) => {
     }
 
     let logoPath = '🏢';
-    
+
     // Si un fichier logo a été uploadé
     if (req.file) {
       logoPath = `/uploads/partners/${req.file.filename}`;

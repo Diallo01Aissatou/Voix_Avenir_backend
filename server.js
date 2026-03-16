@@ -5,6 +5,7 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const socketio = require('socket.io');
 const helmet = require('helmet');
+const morgan = require('morgan');
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const messagesRoutes = require('./routes/messages');
@@ -41,11 +42,13 @@ uploadDirs.forEach(dir => {
 const io = socketio(server);
 
 // connect DB
-mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+const mongoURI = process.env.MONGO_URI || process.env.MONGODB_URI;
+mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => console.log("MongoDB connecté ✅"))
   .catch(err => console.log("Erreur MongoDB ❌", err));
 
 // middlewares
+app.use(morgan('dev'));
 app.use(helmet({
   contentSecurityPolicy: false, // On désactive pour éviter de bloquer les styles du navigateur pendant le dev
 }));
@@ -72,6 +75,17 @@ app.get('/', (req, res) => {
 // Route de test
 app.get('/api/test', (req, res) => {
   res.json({ message: 'API fonctionne', timestamp: new Date() });
+});
+
+// Route de santé
+app.get('/api/health', (req, res) => {
+  const dbStatus = mongoose.connection.readyState === 1 ? 'Connecté' : 'Déconnecté';
+  res.json({
+    status: 'UP',
+    database: dbStatus,
+    timestamp: new Date(),
+    env: process.env.NODE_ENV
+  });
 });
 
 // routes
@@ -186,6 +200,16 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     console.log('socket disconnected', socket.id);
+  });
+});
+
+// Gestionnaire d'erreurs global (doit être après les routes)
+app.use((err, req, res, next) => {
+  console.error('ERREUR GLOBALE:', err);
+  res.status(err.status || 500).json({
+    message: err.message || 'Erreur serveur interne',
+    error: process.env.NODE_ENV === 'development' ? err : {},
+    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
   });
 });
 

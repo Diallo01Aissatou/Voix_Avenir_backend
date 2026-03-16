@@ -6,9 +6,9 @@ exports.getMentores = async (req, res) => {
   try {
     const { city, expertise, search, role } = req.query;
     console.log('Paramètres reçus:', { city, expertise, search, role });
-    
+
     const filter = {};
-    
+
     // Filtrer par rôle si spécifié
     if (role) filter.role = role;
 
@@ -22,7 +22,7 @@ exports.getMentores = async (req, res) => {
     }
 
     console.log('Filtre MongoDB:', filter);
-    
+
     const users = await User.find(filter)
       .select('name profession city expertise bio photo role availableDays startTime endTime')
       .sort({ createdAt: -1 });
@@ -31,7 +31,8 @@ exports.getMentores = async (req, res) => {
     const usersWithPhotoUrl = users.map(user => {
       const userObj = user.toObject();
       if (userObj.photo) {
-        userObj.photo = `http://localhost:5001/uploads/${userObj.photo.split('/').pop()}`;
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        userObj.photo = `${baseUrl}/uploads/${userObj.photo.split('/').pop()}`;
       }
       return userObj;
     });
@@ -75,13 +76,14 @@ exports.getMyProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('-password');
     if (!user) return res.status(404).json({ message: 'Utilisateur non trouvé' });
-    
+
     // Ajouter l'URL complète pour la photo
     const userObj = user.toObject();
     if (userObj.photo) {
-      userObj.photo = `http://localhost:5001/uploads/${userObj.photo.split('/').pop()}`;
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      userObj.photo = `${baseUrl}/uploads/${userObj.photo.split('/').pop()}`;
     }
-    
+
     res.json(userObj);
   } catch (error) {
     res.status(500).json({ message: 'Erreur serveur', error: error.message });
@@ -98,7 +100,7 @@ exports.updateMyProfile = async (req, res) => {
     console.log('Type de expertise:', typeof expertise);
     console.log('Contenu expertise:', expertise);
     console.log('Est un tableau:', Array.isArray(expertise));
-    
+
     // Forcer la mise à jour de l'expertise
     const updateData = {
       bio: bio || '',
@@ -107,7 +109,7 @@ exports.updateMyProfile = async (req, res) => {
       endTime: endTime || '17:00',
       updatedAt: new Date()
     };
-    
+
     // Traiter l'expertise spécialement
     if (expertise) {
       if (Array.isArray(expertise)) {
@@ -118,15 +120,15 @@ exports.updateMyProfile = async (req, res) => {
         updateData.expertise = [];
       }
     }
-    
+
     console.log('Données finales à sauvegarder:', updateData);
-    
+
     const user = await User.findByIdAndUpdate(
       req.user._id,
       updateData,
       { new: true, runValidators: true }
     ).select('-password');
-    
+
     if (!user) return res.status(404).json({ message: 'Utilisateur non trouvé' });
     console.log('Profil mis à jour avec succès, expertise:', user.expertise);
     res.json({ success: true, message: 'Profil mis à jour', user });
@@ -174,7 +176,7 @@ exports.updateUser = async (req, res) => {
       req.body,
       { new: true, runValidators: true }
     ).select('-password');
-    
+
     if (!user) return res.status(404).json({ message: 'Utilisateur non trouvé' });
     res.json(user);
   } catch (error) {
@@ -188,11 +190,11 @@ exports.getPublicStats = async (req, res) => {
     const totalUsers = await User.countDocuments();
     const totalMentores = await User.countDocuments({ role: 'mentore' });
     const totalMentorees = await User.countDocuments({ role: 'mentoree' });
-    
-    const citiesCount = await User.distinct('city').then(cities => 
+
+    const citiesCount = await User.distinct('city').then(cities =>
       cities.filter(city => city && city.trim() !== '').length
     );
-    
+
     let partnershipsCount = 0;
     try {
       const Partner = require('../models/Partner');
@@ -200,12 +202,12 @@ exports.getPublicStats = async (req, res) => {
     } catch (e) {
       partnershipsCount = 0;
     }
-    
+
     // Calculer le taux de satisfaction basé sur le nombre d'utilisateurs
-    const satisfactionRate = totalUsers > 0 
+    const satisfactionRate = totalUsers > 0
       ? Math.min(95 + Math.floor(totalUsers / 10), 100)
       : 98;
-    
+
     res.json({
       totalUsers,
       totalMentores,
@@ -225,7 +227,7 @@ exports.getStats = async (req, res) => {
     const totalUsers = await User.countDocuments();
     const totalMentores = await User.countDocuments({ role: 'mentore' });
     const totalMentorees = await User.countDocuments({ role: 'mentoree' });
-    
+
     res.json({
       totalUsers,
       totalMentores,
@@ -269,7 +271,8 @@ exports.searchMentors = async (req, res) => {
     const usersWithPhotoUrl = users.map(user => {
       const userObj = user.toObject();
       if (userObj.photo) {
-        userObj.photo = `http://localhost:5001/uploads/${userObj.photo.split('/').pop()}`;
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        userObj.photo = `${baseUrl}/uploads/${userObj.photo.split('/').pop()}`;
       }
       return userObj;
     });
@@ -293,7 +296,7 @@ exports.searchMentors = async (req, res) => {
 
 exports.uploadDocuments = async (req, res) => {
   try {
-    if(!req.files || req.files.length === 0) return res.status(400).json({ message: 'No files uploaded' });
+    if (!req.files || req.files.length === 0) return res.status(400).json({ message: 'No files uploaded' });
     const paths = req.files.map(f => f.path);
     const user = await User.findById(req.user._id);
     user.documents.push(...paths);
@@ -340,7 +343,8 @@ exports.uploadProfilePhoto = async (req, res) => {
     // Ajouter l'URL complète pour la photo
     const userObj = user.toObject();
     if (userObj.photo) {
-      userObj.photo = `http://localhost:5001/uploads/${userObj.photo}`;
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      userObj.photo = `${baseUrl}/uploads/${userObj.photo.split('/').pop()}`;
     }
 
     res.json({ message: 'Photo de profil mise à jour', user: userObj });
