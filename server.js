@@ -43,9 +43,26 @@ const io = socketio(server);
 
 // connect DB
 const mongoURI = process.env.MONGO_URI || process.env.MONGODB_URI;
-mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => console.log("MongoDB connecté ✅"))
-  .catch(err => console.log("Erreur MongoDB ❌", err));
+
+if (!mongoURI) {
+  console.error("ERREUR CRITIQUE: MONGO_URI n'est pas définie dans les variables d'environnement ! ❌");
+}
+
+mongoose.connect(mongoURI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+  serverSelectionTimeoutMS: 5000, // Timeout après 5s
+  socketTimeoutMS: 45000, // Fermer les sockets après 45s
+})
+  .then(() => {
+    console.log("MongoDB connecté avec succès ✅");
+    console.log("Base de données:", mongoose.connection.name);
+  })
+  .catch(err => {
+    console.error("ERREUR DE CONNEXION MONGODB ❌");
+    console.error("Message:", err.message);
+    console.error("Code:", err.code);
+  });
 
 // middlewares
 app.use(morgan('dev'));
@@ -53,8 +70,23 @@ app.use(helmet({
   contentSecurityPolicy: false, // On désactive pour éviter de bloquer les styles du navigateur pendant le dev
 }));
 app.use(cors({
-  origin: true,
-  credentials: true
+  origin: function (origin, callback) {
+    const allowedOrigins = [
+      'https://diallo01aissatou.github.io',
+      'http://localhost:5173',
+      'http://localhost:3000'
+    ];
+    // Autoriser les requêtes sans origine (comme les apps mobiles ou curl)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = 'La politique CORS pour ce site ne permet pas l\'accès depuis l\'origine spécifiée.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
 }));
 
 app.use(express.json());
