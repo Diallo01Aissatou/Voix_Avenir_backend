@@ -44,6 +44,13 @@ const io = socketio(server);
 // connect DB
 const mongoURI = process.env.MONGO_URI || process.env.MONGODB_URI;
 
+console.log("--- VÉRIFICATION DES VARIABLES D'ENVIRONNEMENT ---");
+console.log("MONGO_URI présente:", !!process.env.MONGO_URI);
+console.log("MONGODB_URI présente:", !!process.env.MONGODB_URI);
+console.log("JWT_SECRET présente:", !!process.env.JWT_SECRET);
+console.log("NODE_ENV:", process.env.NODE_ENV);
+console.log("--------------------------------------------------");
+
 if (!mongoURI) {
   console.error("ERREUR CRITIQUE: MONGO_URI n'est pas définie dans les variables d'environnement ! ❌");
 }
@@ -51,8 +58,8 @@ if (!mongoURI) {
 mongoose.connect(mongoURI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
-  serverSelectionTimeoutMS: 5000, // Timeout après 5s
-  socketTimeoutMS: 45000, // Fermer les sockets après 45s
+  serverSelectionTimeoutMS: 10000,
+  socketTimeoutMS: 45000,
 })
   .then(() => {
     console.log("MongoDB connecté avec succès ✅");
@@ -111,12 +118,24 @@ app.get('/api/test', (req, res) => {
 
 // Route de santé
 app.get('/api/health', (req, res) => {
-  const dbStatus = mongoose.connection.readyState === 1 ? 'Connecté' : 'Déconnecté';
+  const dbStatus = mongoose.connection.readyState;
+  const statusMap = {
+    0: 'Déconnecté',
+    1: 'Connecté',
+    2: 'Connexion en cours',
+    3: 'Déconnexion en cours'
+  };
+
   res.json({
     status: 'UP',
-    database: dbStatus,
+    database: statusMap[dbStatus] || 'Inconnu',
+    databaseCode: dbStatus,
     timestamp: new Date(),
-    env: process.env.NODE_ENV
+    env: process.env.NODE_ENV,
+    verifications: {
+      hasMongoUri: !!(process.env.MONGO_URI || process.env.MONGODB_URI),
+      hasJwtSecret: !!process.env.JWT_SECRET
+    }
   });
 });
 
