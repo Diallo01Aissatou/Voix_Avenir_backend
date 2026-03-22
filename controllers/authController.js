@@ -31,7 +31,15 @@ const sendTokenInCookie = (res, user, message) => {
   res.cookie("token", token, getCookieOptions());
   res.status(200).json({
     message,
-    user: { id: user._id, name: user.name, role: user.role, verified: user.verified, email: user.email, isMasterAdmin: user.isMasterAdmin }
+    user: { 
+      id: user._id, 
+      name: user.name, 
+      role: user.role, 
+      verified: user.verified, 
+      email: user.email, 
+      isMasterAdmin: user.isMasterAdmin,
+      photo: user.photo 
+    }
   });
 };
 

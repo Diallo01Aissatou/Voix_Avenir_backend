@@ -93,45 +93,61 @@ exports.getMyProfile = async (req, res) => {
 // Mettre à jour le profil de l'utilisateur connecté
 exports.updateMyProfile = async (req, res) => {
   try {
-    const { bio, expertise, availableDays, startTime, endTime } = req.body;
-    console.log('Données reçues pour mise à jour profil:', {
-      bio, expertise, availableDays, startTime, endTime
-    });
-    console.log('Type de expertise:', typeof expertise);
-    console.log('Contenu expertise:', expertise);
-    console.log('Est un tableau:', Array.isArray(expertise));
+    const { 
+      name, 
+      age, 
+      city, 
+      level, 
+      profession, 
+      interests, 
+      expertise, 
+      bio, 
+      availableDays, 
+      startTime, 
+      endTime 
+    } = req.body;
 
-    // Forcer la mise à jour de l'expertise
     const updateData = {
-      bio: bio || '',
-      availableDays: availableDays || [],
-      startTime: startTime || '09:00',
-      endTime: endTime || '17:00',
       updatedAt: new Date()
     };
 
-    // Traiter l'expertise spécialement
-    if (expertise) {
-      if (Array.isArray(expertise)) {
-        updateData.expertise = expertise.filter(e => e && e.trim());
-      } else if (typeof expertise === 'string') {
-        updateData.expertise = expertise.split(',').map(e => e.trim()).filter(Boolean);
-      } else {
-        updateData.expertise = [];
-      }
-    }
+    if (name !== undefined) updateData.name = name;
+    if (age !== undefined) updateData.age = age;
+    if (city !== undefined) updateData.city = city;
+    if (level !== undefined) updateData.level = level;
+    if (profession !== undefined) updateData.profession = profession;
+    if (bio !== undefined) updateData.bio = bio;
+    if (availableDays !== undefined) updateData.availableDays = availableDays;
+    if (startTime !== undefined) updateData.startTime = startTime;
+    if (endTime !== undefined) updateData.endTime = endTime;
 
-    console.log('Données finales à sauvegarder:', updateData);
+    // Traitement des tableaux (interests et expertise)
+    const parseToArray = (val) => {
+      if (!val) return [];
+      if (Array.isArray(val)) return val;
+      if (typeof val === 'string') return val.split(',').map(v => v.trim()).filter(Boolean);
+      return [];
+    };
+
+    if (interests !== undefined) updateData.interests = parseToArray(interests);
+    if (expertise !== undefined) updateData.expertise = parseToArray(expertise);
 
     const user = await User.findByIdAndUpdate(
-      req.user._id,
+      req.user.id,
       updateData,
       { new: true, runValidators: true }
     ).select('-password');
 
     if (!user) return res.status(404).json({ message: 'Utilisateur non trouvé' });
-    console.log('Profil mis à jour avec succès, expertise:', user.expertise);
-    res.json({ success: true, message: 'Profil mis à jour', user });
+
+    // Ajouter l'URL complète pour la photo
+    const userObj = user.toObject();
+    if (userObj.photo) {
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      userObj.photo = `${baseUrl}/uploads/${userObj.photo.split('/').pop()}`;
+    }
+
+    res.json({ success: true, message: 'Profil mis à jour', user: userObj });
   } catch (error) {
     console.error('Erreur mise à jour profil:', error);
     res.status(500).json({ message: 'Erreur serveur', error: error.message });
