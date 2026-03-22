@@ -62,7 +62,8 @@ exports.getSentRequests = async (req, res) => {
     const requestsWithPhotoUrl = requests.map(request => {
       const requestObj = request.toObject();
       if (requestObj.mentore?.photo) {
-        requestObj.mentore.photo = `http://localhost:${process.env.PORT || 5001}/uploads/${requestObj.mentore.photo.split('/').pop()}`;
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        requestObj.mentore.photo = `${baseUrl}/uploads/${requestObj.mentore.photo.split('/').pop()}`;
       }
       return requestObj;
     });
@@ -86,7 +87,8 @@ exports.getReceivedRequests = async (req, res) => {
         // Corriger l'URL de la photo
         const photoPath = requestObj.mentoree.photo;
         if (!photoPath.startsWith('http')) {
-          requestObj.mentoree.photo = `http://localhost:5001${photoPath.startsWith('/') ? photoPath : '/' + photoPath}`;
+          const baseUrl = `${req.protocol}://${req.get('host')}`;
+          requestObj.mentoree.photo = `${baseUrl}${photoPath.startsWith('/') ? photoPath : '/' + photoPath}`;
         }
       }
       return requestObj;
@@ -166,11 +168,12 @@ exports.getActiveMentorships = async (req, res) => {
     // Ajouter l'URL complète pour les photos
     const mentorshipsWithPhotoUrl = mentorships.map(mentorship => {
       const mentorshipObj = mentorship.toObject();
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
       if (mentorshipObj.mentore?.photo) {
-        mentorshipObj.mentore.photo = `http://localhost:${process.env.PORT || 5001}/uploads/${mentorshipObj.mentore.photo.split('/').pop()}`;
+        mentorshipObj.mentore.photo = `${baseUrl}/uploads/${mentorshipObj.mentore.photo.split('/').pop()}`;
       }
       if (mentorshipObj.mentoree?.photo) {
-        mentorshipObj.mentoree.photo = `http://localhost:${process.env.PORT || 5001}/uploads/${mentorshipObj.mentoree.photo.split('/').pop()}`;
+        mentorshipObj.mentoree.photo = `${baseUrl}/uploads/${mentorshipObj.mentoree.photo.split('/').pop()}`;
       }
       return mentorshipObj;
     });
@@ -323,11 +326,12 @@ exports.getSessions = async (req, res) => {
     // Ajouter l'URL complète pour les photos
     const sessionsWithPhotoUrl = sessions.map(session => {
       const sessionObj = { ...session };
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
       if (sessionObj.mentore?.photo) {
-        sessionObj.mentore.photo = `http://localhost:5001/uploads/${sessionObj.mentore.photo.split('/').pop()}`;
+        sessionObj.mentore.photo = `${baseUrl}/uploads/${sessionObj.mentore.photo.split('/').pop()}`;
       }
       if (sessionObj.mentoree?.photo) {
-        sessionObj.mentoree.photo = `http://localhost:5001/uploads/${sessionObj.mentoree.photo.split('/').pop()}`;
+        sessionObj.mentoree.photo = `${baseUrl}/uploads/${sessionObj.mentoree.photo.split('/').pop()}`;
       }
       return sessionObj;
     });

@@ -25,7 +25,7 @@ const createNotification = async (recipientId, senderId, type, title, message, s
 exports.createSession = async (req, res) => {
   try {
     const { mentorshipRequestId, topic, description, scheduledDate, scheduledTime, duration, mode } = req.body;
-    
+
     const mentorshipRequest = await MentorshipRequest.findById(mentorshipRequestId);
     if (!mentorshipRequest || mentorshipRequest.status !== 'accepted') {
       return res.status(400).json({ message: 'Mentorat non trouvé ou non accepté' });
@@ -44,7 +44,7 @@ exports.createSession = async (req, res) => {
     });
 
     await session.save();
-    
+
     // Créer notification pour la mentorée
     await createNotification(
       mentorshipRequest.mentoree,
@@ -86,11 +86,12 @@ exports.getSessions = async (req, res) => {
     // Ajouter URLs photos
     const sessionsWithPhotoUrl = sessions.map(session => {
       const sessionObj = session.toObject();
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
       if (sessionObj.mentore?.photo) {
-        sessionObj.mentore.photo = `http://localhost:5001/uploads/${sessionObj.mentore.photo.split('/').pop()}`;
+        sessionObj.mentore.photo = `${baseUrl}/uploads/${sessionObj.mentore.photo.split('/').pop()}`;
       }
       if (sessionObj.mentoree?.photo) {
-        sessionObj.mentoree.photo = `http://localhost:5001/uploads/${sessionObj.mentoree.photo.split('/').pop()}`;
+        sessionObj.mentoree.photo = `${baseUrl}/uploads/${sessionObj.mentoree.photo.split('/').pop()}`;
       }
       return sessionObj;
     });
@@ -135,7 +136,7 @@ exports.confirmSession = async (req, res) => {
     // Notification à l'autre partie avec le lien
     const recipientId = session.mentoree._id.toString() === userId.toString() ? session.mentore._id : session.mentoree._id;
     const meetingInfo = session.meetingLink ? ` - Lien: ${session.meetingLink}` : '';
-    
+
     await createNotification(
       recipientId,
       userId,
@@ -145,8 +146,8 @@ exports.confirmSession = async (req, res) => {
       session._id
     );
 
-    res.json({ 
-      message: 'Séance confirmée et lien Google Meet généré', 
+    res.json({
+      message: 'Séance confirmée et lien Google Meet généré',
       session,
       meetingLink: session.meetingLink
     });
@@ -263,7 +264,7 @@ exports.completeSession = async (req, res) => {
 exports.getNotifications = async (req, res) => {
   try {
     const userId = req.user._id;
-    
+
     const notifications = await Notification.find({ recipient: userId })
       .populate('sender', 'name photo')
       .sort({ createdAt: -1 })

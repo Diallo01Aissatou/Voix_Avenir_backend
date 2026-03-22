@@ -8,14 +8,14 @@ const mongoose = require('mongoose');
 exports.requestAppointment = async (req, res) => {
   try {
     const { mentor, notes, scheduledAt } = req.body;
-    
+
     console.log('Création demande:', {
       mentee: req.user._id,
       mentor,
       notes,
       scheduledAt
     });
-    
+
     const appt = await Appointment.create({
       mentee: req.user._id,
       mentor,
@@ -23,15 +23,15 @@ exports.requestAppointment = async (req, res) => {
       scheduledAt: scheduledAt || new Date(),
       status: 'pending'
     });
-    
+
     // Peupler les données pour la réponse
     const populatedAppt = await Appointment.findById(appt._id)
       .populate('mentee', 'name email city age level interests')
       .populate('mentor', 'name profession');
-    
-    res.status(201).json({ 
-      message: 'Demande envoyée avec succès', 
-      appointment: populatedAppt 
+
+    res.status(201).json({
+      message: 'Demande envoyée avec succès',
+      appointment: populatedAppt
     });
   } catch (err) {
     console.error('Erreur création demande:', err);
@@ -61,14 +61,15 @@ exports.getMyRequests = async (req, res) => {
     const requests = await Appointment.find({ mentee: req.user._id })
       .populate('mentor', 'name profession photo')
       .sort('-requestedAt');
-    
+
     // Formater les données pour le frontend
     const formattedRequests = requests.map(request => {
       const mentorObj = request.mentor?.toObject ? request.mentor.toObject() : request.mentor;
       if (mentorObj?.photo) {
-        mentorObj.photo = `http://localhost:${process.env.PORT || 3000}/uploads/${mentorObj.photo.split('/').pop()}`;
+        const baseUrl = `${req.get('x-forwarded-proto') || req.protocol}://${req.get('host')}`;
+        mentorObj.photo = `${baseUrl}/uploads/${mentorObj.photo.split('/').pop()}`;
       }
-      
+
       return {
         id: request._id,
         message: request.notes,
@@ -81,7 +82,7 @@ exports.getMyRequests = async (req, res) => {
         }
       };
     });
-    
+
     res.json(formattedRequests);
   } catch (error) {
     res.status(500).json({ message: 'Erreur serveur', error: error.message });
@@ -113,9 +114,9 @@ exports.getReceivedRequests = async (req, res) => {
     const requests = await Appointment.find({ mentor: req.user._id })
       .populate('mentee', 'name email city age level interests photo')
       .sort('-requestedAt');
-    
+
     console.log('Demandes reçues pour mentore:', requests.length);
-    
+
     // Formater les données pour le frontend
     const formattedRequests = requests.map(request => ({
       id: request._id,
@@ -133,7 +134,7 @@ exports.getReceivedRequests = async (req, res) => {
         photo: request.mentee?.photo
       }
     }));
-    
+
     res.json(formattedRequests);
   } catch (error) {
     console.error('Erreur getReceivedRequests:', error);
@@ -145,7 +146,7 @@ exports.getReceivedRequests = async (req, res) => {
 exports.getMyStats = async (req, res) => {
   try {
     const userId = req.user._id;
-    
+
     const stats = await Appointment.aggregate([
       { $match: { mentee: userId } },
       {
@@ -155,26 +156,26 @@ exports.getMyStats = async (req, res) => {
         }
       }
     ]);
-    
+
     const result = {
       activeMentorships: 0,
       pendingRequests: 0,
       completedSessions: 0,
       totalHours: 0
     };
-    
+
     stats.forEach(stat => {
       if (stat._id === 'accepted') result.activeMentorships = stat.count;
       if (stat._id === 'pending') result.pendingRequests = stat.count;
     });
-    
+
     // Compter les séances terminées et heures totales
     const sessions = await Session.find({ mentee: userId });
     result.completedSessions = sessions.filter(s => s.status === 'completed').length;
     result.totalHours = sessions.reduce((total, session) => {
       return session.status === 'completed' ? total + (session.duration / 60) : total;
     }, 0);
-    
+
     res.json(result);
   } catch (error) {
     res.status(500).json({ message: 'Erreur serveur', error: error.message });
@@ -187,13 +188,14 @@ exports.getReceivedRequests = async (req, res) => {
     const requests = await Appointment.find({ mentor: req.user._id })
       .populate('mentee', 'name age city level interests bio photo')
       .sort('-requestedAt');
-    
+
     const formattedRequests = requests.map(request => {
       const userObj = request.mentee?.toObject ? request.mentee.toObject() : request.mentee;
       if (userObj?.photo) {
-        userObj.photo = `http://localhost:${process.env.PORT || 3000}/uploads/${userObj.photo.split('/').pop()}`;
+        const baseUrl = `${req.get('x-forwarded-proto') || req.protocol}://${req.get('host')}`;
+        userObj.photo = `${baseUrl}/uploads/${userObj.photo.split('/').pop()}`;
       }
-      
+
       return {
         id: request._id,
         message: request.notes,
@@ -211,7 +213,7 @@ exports.getReceivedRequests = async (req, res) => {
         }
       };
     });
-    
+
     res.json(formattedRequests);
   } catch (error) {
     res.status(500).json({ message: 'Erreur serveur', error: error.message });
@@ -222,7 +224,7 @@ exports.getReceivedRequests = async (req, res) => {
 exports.getMentorStats = async (req, res) => {
   try {
     const userId = req.user._id;
-    
+
     const stats = await Appointment.aggregate([
       { $match: { mentor: userId } },
       {
@@ -232,28 +234,28 @@ exports.getMentorStats = async (req, res) => {
         }
       }
     ]);
-    
+
     const result = {
       totalMentorees: 0,
       pendingRequests: 0,
       activeSessions: 0,
       totalHours: 0
     };
-    
+
     stats.forEach(stat => {
       if (stat._id === 'accepted') {
         result.totalMentorees = stat.count;
       }
       if (stat._id === 'pending') result.pendingRequests = stat.count;
     });
-    
+
     // Compter les séances actives et heures totales
     const sessions = await Session.find({ mentor: userId });
     result.activeSessions = sessions.filter(s => s.status === 'scheduled').length;
     result.totalHours = sessions.reduce((total, session) => {
       return session.status === 'completed' ? total + (session.duration / 60) : total;
     }, 0);
-    
+
     res.json(result);
   } catch (error) {
     res.status(500).json({ message: 'Erreur serveur', error: error.message });
@@ -265,19 +267,19 @@ exports.respondToRequest = async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
-    
+
     const appointment = await Appointment.findById(id);
     if (!appointment) {
       return res.status(404).json({ message: 'Demande non trouvée' });
     }
-    
+
     if (String(appointment.mentor) !== String(req.user._id)) {
       return res.status(403).json({ message: 'Non autorisé' });
     }
-    
+
     appointment.status = status;
     await appointment.save();
-    
+
     res.json({ message: `Demande ${status === 'accepted' ? 'acceptée' : 'refusée'}`, appointment });
   } catch (error) {
     res.status(500).json({ message: 'Erreur serveur', error: error.message });
@@ -290,13 +292,14 @@ exports.getMenteeSessions = async (req, res) => {
     const sessions = await Session.find({ mentee: req.user._id })
       .populate('mentor', 'name photo profession')
       .sort('scheduledDate');
-    
+
     const formattedSessions = sessions.map(session => {
       const userObj = session.mentor?.toObject ? session.mentor.toObject() : session.mentor;
       if (userObj?.photo) {
-        userObj.photo = `http://localhost:${process.env.PORT || 3000}/uploads/${userObj.photo.split('/').pop()}`;
+        const baseUrl = `${req.get('x-forwarded-proto') || req.protocol}://${req.get('host')}`;
+        userObj.photo = `${baseUrl}/uploads/${userObj.photo.split('/').pop()}`;
       }
-      
+
       return {
         id: session._id,
         mentorName: userObj?.name,
@@ -310,7 +313,7 @@ exports.getMenteeSessions = async (req, res) => {
         meetingLink: session.meetingLink
       };
     });
-    
+
     res.json(formattedSessions);
   } catch (error) {
     res.status(500).json({ message: 'Erreur serveur', error: error.message });
@@ -323,13 +326,14 @@ exports.getMentorSessions = async (req, res) => {
     const sessions = await Session.find({ mentor: req.user._id })
       .populate('mentee', 'name photo')
       .sort('scheduledDate');
-    
+
     const formattedSessions = sessions.map(session => {
       const userObj = session.mentee?.toObject ? session.mentee.toObject() : session.mentee;
       if (userObj?.photo) {
-        userObj.photo = `http://localhost:${process.env.PORT || 3000}/uploads/${userObj.photo.split('/').pop()}`;
+        const baseUrl = `${req.get('x-forwarded-proto') || req.protocol}://${req.get('host')}`;
+        userObj.photo = `${baseUrl}/uploads/${userObj.photo.split('/').pop()}`;
       }
-      
+
       return {
         id: session._id,
         mentoreeName: userObj?.name,
@@ -342,7 +346,7 @@ exports.getMentorSessions = async (req, res) => {
         meetingLink: session.meetingLink
       };
     });
-    
+
     res.json(formattedSessions);
   } catch (error) {
     res.status(500).json({ message: 'Erreur serveur', error: error.message });
@@ -353,7 +357,7 @@ exports.getMentorSessions = async (req, res) => {
 exports.createSession = async (req, res) => {
   try {
     const { menteeId, appointmentId, scheduledDate, topic, duration } = req.body;
-    
+
     const session = await Session.create({
       mentor: req.user._id,
       mentee: menteeId,
@@ -362,7 +366,7 @@ exports.createSession = async (req, res) => {
       topic,
       duration: duration || 60
     });
-    
+
     res.status(201).json({ message: 'Séance créée avec succès', session });
   } catch (error) {
     res.status(500).json({ message: 'Erreur serveur', error: error.message });
