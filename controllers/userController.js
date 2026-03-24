@@ -338,6 +338,30 @@ exports.deleteUser = async (req, res) => {
   }
 };
 
+// Statistiques pour l'admin dashboard
+exports.getStats = async (req, res) => {
+  try {
+    const User = require('../models/User');
+    const totalUsers = await User.countDocuments();
+    const totalMentores = await User.countDocuments({ role: 'mentore' });
+    const totalMentorees = await User.countDocuments({ role: 'mentoree' });
+
+    let totalRequests = 0;
+    let pendingRequests = 0;
+    let acceptedRequests = 0;
+    try {
+      const Appointment = require('../models/Appointement');
+      totalRequests = await Appointment.countDocuments();
+      pendingRequests = await Appointment.countDocuments({ status: 'pending' });
+      acceptedRequests = await Appointment.countDocuments({ status: 'accepted' });
+    } catch (e) { /* ignore if model not available */ }
+
+    res.json({ totalUsers, totalMentores, totalMentorees, totalRequests, pendingRequests, acceptedRequests });
+  } catch (error) {
+    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+  }
+};
+
 // Upload photo de profil
 exports.uploadProfilePhoto = async (req, res) => {
   try {
