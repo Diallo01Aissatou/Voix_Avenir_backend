@@ -369,7 +369,7 @@ exports.uploadProfilePhoto = async (req, res) => {
       return res.status(400).json({ message: 'Aucun fichier uploadé' });
     }
 
-    const photoPath = req.file.filename;
+    const photoPath = `/uploads/${req.file.filename}`;
     const user = await User.findByIdAndUpdate(
       req.user.id,
       { photo: photoPath },
