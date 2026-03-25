@@ -69,7 +69,8 @@ mongoose.connect(mongoURI, {
 app.use(morgan('dev'));
 app.use(helmet({
   contentSecurityPolicy: false,
-  crossOriginResourcePolicy: { policy: "cross-origin" }
+  crossOriginResourcePolicy: false,
+  crossOriginEmbedderPolicy: false
 }));
 app.use(cors({
   origin: function (origin, callback) {
@@ -94,7 +95,10 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', (req, res, next) => {
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  next();
+}, express.static(path.join(__dirname, 'uploads')));
 app.use('/uploads/partners', express.static(path.join(__dirname, 'uploads', 'partners')));
 app.use('/uploads/temp', express.static(path.join(__dirname, 'uploads', 'temp')));
 app.use('/uploads/news', express.static(path.join(__dirname, 'uploads', 'news')));
