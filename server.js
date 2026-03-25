@@ -68,7 +68,8 @@ mongoose.connect(mongoURI, {
 // middlewares
 app.use(morgan('dev'));
 app.use(helmet({
-  contentSecurityPolicy: false, // On désactive pour éviter de bloquer les styles du navigateur pendant le dev
+  contentSecurityPolicy: false,
+  crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 app.use(cors({
   origin: function (origin, callback) {
