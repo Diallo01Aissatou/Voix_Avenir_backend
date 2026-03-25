@@ -27,6 +27,7 @@ const faqRoutes = require('./routes/faq');
 const questionRoutes = require('./routes/questions');
 const mongoose = require("mongoose");
 const app = express();
+app.enable('trust proxy');
 const path = require('path');
 const fs = require('fs');
 const server = http.createServer(app);
