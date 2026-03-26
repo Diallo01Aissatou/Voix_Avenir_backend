@@ -192,8 +192,9 @@ exports.getMe = async (req, res) => {
 // ==================================
 exports.logout = (req, res) => {
   try {
-    // Supprime le cookie côté client
-    res.cookie("token", "", { maxAge: 0 });
+    const options = getCookieOptions();
+    options.maxAge = 0;
+    res.cookie("token", "", options);
     res.status(200).json({ message: "Déconnexion réussie" });
   } catch (err) {
     console.error(err);
