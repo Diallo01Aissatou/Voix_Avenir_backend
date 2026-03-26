@@ -164,6 +164,30 @@ exports.login = async (req, res) => {
 };
 
 // ==================================
+// GET ME (Vérifier session)
+// ==================================
+exports.getMe = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('-password');
+    if (!user) return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    
+    res.status(200).json({
+      user: { 
+        id: user._id, 
+        name: user.name, 
+        role: user.role, 
+        verified: user.verified, 
+        email: user.email, 
+        isMasterAdmin: user.isMasterAdmin,
+        photo: user.photo 
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+};
+
+// ==================================
 // LOGOUT
 // ==================================
 exports.logout = (req, res) => {
