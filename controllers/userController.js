@@ -35,7 +35,7 @@ exports.getMentores = async (req, res) => {
     // Ajouter l'URL complète pour les photos
     const usersWithPhotoUrl = users.map(user => {
       const userObj = user.toObject();
-      if (userObj.photo) {
+      if (userObj.photo && !userObj.photo.startsWith('http')) {
         const baseUrl = `${req.protocol}://${req.get('host')}`;
         userObj.photo = `${baseUrl}/uploads/${userObj.photo.split('/').pop()}`;
       }
@@ -84,7 +84,7 @@ exports.getMyProfile = async (req, res) => {
 
     // Ajouter l'URL complète pour la photo
     const userObj = user.toObject();
-    if (userObj.photo) {
+    if (userObj.photo && !userObj.photo.startsWith('http')) {
       const baseUrl = `${req.protocol}://${req.get('host')}`;
       userObj.photo = `${baseUrl}/uploads/${userObj.photo.split('/').pop()}`;
     }
@@ -147,7 +147,7 @@ exports.updateMyProfile = async (req, res) => {
 
     // Ajouter l'URL complète pour la photo
     const userObj = user.toObject();
-    if (userObj.photo) {
+    if (userObj.photo && !userObj.photo.startsWith('http')) {
       const baseUrl = `${req.protocol}://${req.get('host')}`;
       userObj.photo = `${baseUrl}/uploads/${userObj.photo.split('/').pop()}`;
     }
@@ -291,7 +291,7 @@ exports.searchMentors = async (req, res) => {
     // Ajouter l'URL complète pour les photos
     const usersWithPhotoUrl = users.map(user => {
       const userObj = user.toObject();
-      if (userObj.photo) {
+      if (userObj.photo && !userObj.photo.startsWith('http')) {
         const baseUrl = `${req.protocol}://${req.get('host')}`;
         userObj.photo = `${baseUrl}/uploads/${userObj.photo.split('/').pop()}`;
       }
@@ -425,7 +425,7 @@ exports.uploadProfilePhoto = async (req, res) => {
 
     // Ajouter l'URL complète pour la photo
     const userObj = user.toObject();
-    if (userObj.photo) {
+    if (userObj.photo && !userObj.photo.startsWith('http')) {
       const baseUrl = `${req.protocol}://${req.get('host')}`;
       userObj.photo = `${baseUrl}/uploads/${userObj.photo.split('/').pop()}`;
     }

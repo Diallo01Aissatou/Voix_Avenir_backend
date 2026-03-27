@@ -65,7 +65,7 @@ exports.getMyRequests = async (req, res) => {
     // Formater les données pour le frontend
     const formattedRequests = requests.map(request => {
       const mentorObj = request.mentor?.toObject ? request.mentor.toObject() : request.mentor;
-      if (mentorObj?.photo) {
+      if (mentorObj?.photo && !mentorObj.photo.startsWith('http')) {
         const baseUrl = `${req.get('x-forwarded-proto') || req.protocol}://${req.get('host')}`;
         mentorObj.photo = `${baseUrl}/uploads/${mentorObj.photo.split('/').pop()}`;
       }
@@ -191,7 +191,7 @@ exports.getReceivedRequests = async (req, res) => {
 
     const formattedRequests = requests.map(request => {
       const userObj = request.mentee?.toObject ? request.mentee.toObject() : request.mentee;
-      if (userObj?.photo) {
+      if (userObj?.photo && !userObj.photo.startsWith('http')) {
         const baseUrl = `${req.get('x-forwarded-proto') || req.protocol}://${req.get('host')}`;
         userObj.photo = `${baseUrl}/uploads/${userObj.photo.split('/').pop()}`;
       }
@@ -295,7 +295,7 @@ exports.getMenteeSessions = async (req, res) => {
 
     const formattedSessions = sessions.map(session => {
       const userObj = session.mentor?.toObject ? session.mentor.toObject() : session.mentor;
-      if (userObj?.photo) {
+      if (userObj?.photo && !userObj.photo.startsWith('http')) {
         const baseUrl = `${req.get('x-forwarded-proto') || req.protocol}://${req.get('host')}`;
         userObj.photo = `${baseUrl}/uploads/${userObj.photo.split('/').pop()}`;
       }
@@ -329,7 +329,7 @@ exports.getMentorSessions = async (req, res) => {
 
     const formattedSessions = sessions.map(session => {
       const userObj = session.mentee?.toObject ? session.mentee.toObject() : session.mentee;
-      if (userObj?.photo) {
+      if (userObj?.photo && !userObj.photo.startsWith('http')) {
         const baseUrl = `${req.get('x-forwarded-proto') || req.protocol}://${req.get('host')}`;
         userObj.photo = `${baseUrl}/uploads/${userObj.photo.split('/').pop()}`;
       }

@@ -87,10 +87,10 @@ exports.getSessions = async (req, res) => {
     const sessionsWithPhotoUrl = sessions.map(session => {
       const sessionObj = session.toObject();
       const baseUrl = `${req.protocol}://${req.get('host')}`;
-      if (sessionObj.mentore?.photo) {
+      if (sessionObj.mentore?.photo && !sessionObj.mentore.photo.startsWith('http')) {
         sessionObj.mentore.photo = `${baseUrl}/uploads/${sessionObj.mentore.photo.split('/').pop()}`;
       }
-      if (sessionObj.mentoree?.photo) {
+      if (sessionObj.mentoree?.photo && !sessionObj.mentoree.photo.startsWith('http')) {
         sessionObj.mentoree.photo = `${baseUrl}/uploads/${sessionObj.mentoree.photo.split('/').pop()}`;
       }
       return sessionObj;

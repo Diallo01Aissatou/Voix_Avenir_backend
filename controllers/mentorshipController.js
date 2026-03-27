@@ -61,7 +61,7 @@ exports.getSentRequests = async (req, res) => {
     // Ajouter l'URL complète pour les photos
     const requestsWithPhotoUrl = requests.map(request => {
       const requestObj = request.toObject();
-      if (requestObj.mentore?.photo) {
+      if (requestObj.mentore?.photo && !requestObj.mentore.photo.startsWith('http')) {
         const baseUrl = `${req.protocol}://${req.get('host')}`;
         requestObj.mentore.photo = `${baseUrl}/uploads/${requestObj.mentore.photo.split('/').pop()}`;
       }
@@ -169,10 +169,10 @@ exports.getActiveMentorships = async (req, res) => {
     const mentorshipsWithPhotoUrl = mentorships.map(mentorship => {
       const mentorshipObj = mentorship.toObject();
       const baseUrl = `${req.protocol}://${req.get('host')}`;
-      if (mentorshipObj.mentore?.photo) {
+      if (mentorshipObj.mentore?.photo && !mentorshipObj.mentore.photo.startsWith('http')) {
         mentorshipObj.mentore.photo = `${baseUrl}/uploads/${mentorshipObj.mentore.photo.split('/').pop()}`;
       }
-      if (mentorshipObj.mentoree?.photo) {
+      if (mentorshipObj.mentoree?.photo && !mentorshipObj.mentoree.photo.startsWith('http')) {
         mentorshipObj.mentoree.photo = `${baseUrl}/uploads/${mentorshipObj.mentoree.photo.split('/').pop()}`;
       }
       return mentorshipObj;
@@ -327,10 +327,10 @@ exports.getSessions = async (req, res) => {
     const sessionsWithPhotoUrl = sessions.map(session => {
       const sessionObj = { ...session };
       const baseUrl = `${req.protocol}://${req.get('host')}`;
-      if (sessionObj.mentore?.photo) {
+      if (sessionObj.mentore?.photo && !sessionObj.mentore.photo.startsWith('http')) {
         sessionObj.mentore.photo = `${baseUrl}/uploads/${sessionObj.mentore.photo.split('/').pop()}`;
       }
-      if (sessionObj.mentoree?.photo) {
+      if (sessionObj.mentoree?.photo && !sessionObj.mentoree.photo.startsWith('http')) {
         sessionObj.mentoree.photo = `${baseUrl}/uploads/${sessionObj.mentoree.photo.split('/').pop()}`;
       }
       return sessionObj;
