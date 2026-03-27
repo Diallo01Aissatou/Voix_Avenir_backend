@@ -19,41 +19,55 @@ passport.deserializeUser(async (id, done) => {
 
 // Stratégie Google
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
-  passport.use(new GoogleStrategy({
-      clientID: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: "/api/auth/google/callback",
-      proxy: true
-    },
-    async (accessToken, refreshToken, profile, done) => {
-      try {
-        let user = await User.findOne({ googleId: profile.id });
-        if (user) {
-          // Mettre à jour la photo si disponible
-          if (profile.photos && profile.photos[0]) {
-            user.photo = profile.photos[0].value;
-            await user.save();
-          }
-        } else {
-          user = await User.findOne({ email: profile.emails[0].value });
+    passport.use(new GoogleStrategy({
+        clientID: process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        callbackURL: "/api/auth/google/callback",
+        proxy: true,
+        passReqToCallback: true
+      },
+      async (req, accessToken, refreshToken, profile, done) => {
+        try {
+          let user = await User.findOne({ googleId: profile.id });
           if (user) {
-            user.googleId = profile.id;
-            // Toujours mettre à jour la photo depuis Google si disponible
+            // Mettre à jour la photo si disponible
             if (profile.photos && profile.photos[0]) {
               user.photo = profile.photos[0].value;
+              await user.save();
             }
-            await user.save();
           } else {
-            user = await User.create({
-              name: profile.displayName,
-              email: profile.emails[0].value,
-              googleId: profile.id,
-              role: 'mentoree',
-              verified: true,
-              photo: profile.photos[0]?.value
-            });
+            user = await User.findOne({ email: profile.emails[0].value });
+            if (user) {
+              user.googleId = profile.id;
+              // Toujours mettre à jour la photo depuis Google si disponible
+              if (profile.photos && profile.photos[0]) {
+                user.photo = profile.photos[0].value;
+              }
+              await user.save();
+            } else {
+              // Extraire le rôle du state OAuth
+              let role = 'mentoree';
+              if (req.query.state) {
+                try {
+                  const state = JSON.parse(req.query.state);
+                  if (state.role && ['mentore', 'mentoree', 'admin'].includes(state.role)) {
+                    role = state.role;
+                  }
+                } catch (e) {
+                  console.error('Erreur parsing state OAuth:', e);
+                }
+              }
+  
+              user = await User.create({
+                name: profile.displayName,
+                email: profile.emails[0].value,
+                googleId: profile.id,
+                role: role,
+                verified: true,
+                photo: profile.photos[0]?.value
+              });
+            }
           }
-        }
         return done(null, user);
       } catch (err) {
         return done(err, null);

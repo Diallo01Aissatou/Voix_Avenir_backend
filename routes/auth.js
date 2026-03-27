@@ -65,7 +65,13 @@ const handleSocialCallback = (req, res) => {
 };
 
 // Google
-router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+router.get('/google', (req, res, next) => {
+  const role = req.query.role || 'mentoree';
+  passport.authenticate('google', { 
+    scope: ['profile', 'email'],
+    state: JSON.stringify({ role })
+  })(req, res, next);
+});
 router.get('/google/callback', passport.authenticate('google', { failureRedirect: '/login' }), handleSocialCallback);
 
 // Facebook
