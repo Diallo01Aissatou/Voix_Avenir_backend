@@ -32,6 +32,10 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
           user = await User.findOne({ email: profile.emails[0].value });
           if (user) {
             user.googleId = profile.id;
+            // Toujours mettre à jour la photo depuis Google si disponible
+            if (profile.photos && profile.photos[0]) {
+              user.photo = profile.photos[0].value;
+            }
             await user.save();
           } else {
             user = await User.create({
