@@ -5,7 +5,7 @@ const NotificationSchema = new mongoose.Schema({
   sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   type: { 
     type: String, 
-    enum: ['session_created', 'session_updated', 'session_confirmed', 'session_cancelled', 'session_reminder', 'request_accepted', 'request_rejected'],
+    enum: ['session_created', 'session_updated', 'session_confirmed', 'session_cancelled', 'session_reminder', 'request_accepted', 'request_rejected', 'mentor_approved'],
     required: true 
   },
   title: { type: String, required: true },

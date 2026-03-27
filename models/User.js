@@ -20,6 +20,7 @@ const UserSchema = new mongoose.Schema({
   expertise: [String], 
   bio: String,
   verified: { type: Boolean, default: false },
+  isApproved: { type: Boolean, default: false },
   isMasterAdmin: { type: Boolean, default: false }, 
   documents: [String], 
   availability: [ 

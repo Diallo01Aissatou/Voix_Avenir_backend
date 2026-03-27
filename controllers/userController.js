@@ -12,6 +12,11 @@ exports.getMentores = async (req, res) => {
     // Filtrer par rôle si spécifié
     if (role) filter.role = role;
 
+    // Seuls les mentors approuvés sont visibles publiquement
+    if (!role || role === 'mentore') {
+      filter.isApproved = true;
+    }
+
     if (city) filter.city = city;
     if (expertise) filter.expertise = { $in: [expertise] };
     if (search) {
@@ -204,7 +209,7 @@ exports.updateUser = async (req, res) => {
 exports.getPublicStats = async (req, res) => {
   try {
     const totalUsers = await User.countDocuments();
-    const totalMentores = await User.countDocuments({ role: 'mentore' });
+    const totalMentores = await User.countDocuments({ role: 'mentore', isApproved: true });
     const totalMentorees = await User.countDocuments({ role: 'mentoree' });
 
     const citiesCount = await User.distinct('city').then(cities =>
@@ -258,8 +263,8 @@ exports.searchMentors = async (req, res) => {
   try {
     const { q, city, expertise, page = 1, limit = 10 } = req.query;
 
-    // 🔹 filtre de base = vide → affiche tout
-    const filter = {};
+    // 🔹 filtre de base = mentors approuvés
+    const filter = { isApproved: true };
 
     // 🔹 si on veut chercher avec q (nom ou profession)
     if (q) {
@@ -338,12 +343,42 @@ exports.deleteUser = async (req, res) => {
   }
 };
 
+// Approuver un mentor (Admin)
+exports.approveMentor = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    if (user.role !== 'mentore') return res.status(400).json({ message: 'Cet utilisateur n\'est pas un mentor' });
+
+    user.isApproved = true;
+    await user.save();
+
+    // Créer une notification pour le mentor
+    try {
+      const Notification = require('../models/Notification');
+      await Notification.create({
+        recipient: user._id,
+        type: 'mentor_approved',
+        title: 'Félicitations ! Votre profil mentor a été approuvé',
+        message: 'Vous êtes désormais visible sur la plateforme et pouvez recevoir des demandes de mentorat.'
+      });
+    } catch (notifErr) {
+      console.error('Erreur creation notification approbation:', notifErr);
+    }
+
+    res.json({ success: true, message: 'Mentor approuvé avec succès', user });
+  } catch (error) {
+    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+  }
+};
+
 // Statistiques pour l'admin dashboard
 exports.getStats = async (req, res) => {
   try {
     const User = require('../models/User');
     const totalUsers = await User.countDocuments();
-    const totalMentores = await User.countDocuments({ role: 'mentore' });
+    const totalMentores = await User.countDocuments({ role: 'mentore' }); // Total mentores (incluant non-approuvés)
+    const approvedMentores = await User.countDocuments({ role: 'mentore', isApproved: true });
     const totalMentorees = await User.countDocuments({ role: 'mentoree' });
 
     let totalRequests = 0;
@@ -356,7 +391,15 @@ exports.getStats = async (req, res) => {
       acceptedRequests = await Appointment.countDocuments({ status: 'accepted' });
     } catch (e) { /* ignore if model not available */ }
 
-    res.json({ totalUsers, totalMentores, totalMentorees, totalRequests, pendingRequests, acceptedRequests });
+    res.json({ 
+      totalUsers, 
+      totalMentores, 
+      approvedMentores, 
+      totalMentorees, 
+      totalRequests, 
+      pendingRequests, 
+      acceptedRequests 
+    });
   } catch (error) {
     res.status(500).json({ message: 'Erreur serveur', error: error.message });
   }

@@ -111,7 +111,8 @@ exports.register = async (req, res) => {
       interests: interestsArray,
       profession,
       expertise: expertiseArray,
-      bio: bio || ''
+      bio: bio || '',
+      isApproved: role === 'mentore' ? false : true // Les mentores doivent être validées
     };
 
     // Enregistrer la photo si fournie (diskStorage)
