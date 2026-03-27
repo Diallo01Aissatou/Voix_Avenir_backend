@@ -57,12 +57,11 @@ const handleSocialCallback = (req, res) => {
     maxAge: 7 * 24 * 60 * 60 * 1000,
   });
 
-  // Redirection vers le frontend
-  const frontendUrl = isProd 
-    ? "https://diallo01aissatou.github.io/Mentorat-GN-Aissatou" 
-    : "http://localhost:5173";
+  // Redirection vers le frontend avec le token
+  const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173/Voix_D-avenir";
     
-  res.redirect(frontendUrl);
+  // On passe le token dans l'URL pour que le frontend puisse le stocker dans localStorage
+  res.redirect(`${frontendUrl}?token=${token}`);
 };
 
 // Google

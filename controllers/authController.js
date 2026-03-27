@@ -39,7 +39,8 @@ const sendTokenInCookie = (res, user, message) => {
       email: user.email, 
       isMasterAdmin: user.isMasterAdmin,
       photo: user.photo 
-    }
+    },
+    token // Ajout du token dans la réponse JSON
   });
 };
 
@@ -222,8 +223,8 @@ exports.forgotPassword = async (req, res) => {
     await user.save({ validateBeforeSave: false });
 
     // URL de réinitialisation
-    const baseUrl = `${req.protocol}://${req.get('host')}`;
-    const resetUrl = `${baseUrl.replace('5001', '5173')}?page=reset-password&token=${resetToken}`;
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173/Voix_D-avenir";
+    const resetUrl = `${frontendUrl}?page=reset-password&token=${resetToken}`;
 
     // Configuration Gmail SMTP
     console.log('Tentative d\'envoi email à:', user.email);
