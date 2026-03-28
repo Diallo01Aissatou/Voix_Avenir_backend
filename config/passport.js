@@ -1,6 +1,6 @@
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
-const FacebookStrategy = require('passport-facebook').Strategy;
+const TikTokStrategy = require('passport-tiktok-auth').Strategy;
 const LinkedInStrategy = require('passport-linkedin-oauth2').Strategy;
 const User = require('../models/User');
 
@@ -76,32 +76,31 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
   ));
 }
 
-// Stratégie Facebook
-if (process.env.FACEBOOK_APP_ID && process.env.FACEBOOK_APP_SECRET) {
-  passport.use(new FacebookStrategy({
-      clientID: process.env.FACEBOOK_APP_ID,
-      clientSecret: process.env.FACEBOOK_APP_SECRET,
-      callbackURL: "/api/auth/facebook/callback",
-      profileFields: ['id', 'displayName', 'emails', 'photos'],
+// Stratégie TikTok
+if (process.env.TIKTOK_CLIENT_KEY && process.env.TIKTOK_CLIENT_SECRET) {
+  passport.use(new TikTokStrategy({
+      clientID: process.env.TIKTOK_CLIENT_KEY,
+      clientSecret: process.env.TIKTOK_CLIENT_SECRET,
+      callbackURL: "/api/auth/tiktok/callback",
       proxy: true
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
-        let user = await User.findOne({ facebookId: profile.id });
+        let user = await User.findOne({ tiktokId: profile.id });
         if (!user) {
-          const email = profile.emails ? profile.emails[0].value : `${profile.id}@facebook.com`;
+          const email = profile.emails && profile.emails.length > 0 ? profile.emails[0].value : `${profile.id}@tiktok.com`;
           user = await User.findOne({ email });
           if (user) {
-            user.facebookId = profile.id;
+            user.tiktokId = profile.id;
             await user.save();
           } else {
             user = await User.create({
-              name: profile.displayName,
+              name: profile.displayName || profile.username || 'TikTok User',
               email: email,
-              facebookId: profile.id,
+              tiktokId: profile.id,
               role: 'mentoree',
               verified: true,
-              photo: profile.photos ? profile.photos[0].value : null
+              photo: profile.photos && profile.photos.length > 0 ? profile.photos[0].value : null
             });
           }
         }

@@ -74,9 +74,9 @@ router.get('/google', (req, res, next) => {
 });
 router.get('/google/callback', passport.authenticate('google', { failureRedirect: '/login' }), handleSocialCallback);
 
-// Facebook
-router.get('/facebook', passport.authenticate('facebook', { scope: ['email'] }));
-router.get('/facebook/callback', passport.authenticate('facebook', { failureRedirect: '/login' }), handleSocialCallback);
+// TikTok
+router.get('/tiktok', passport.authenticate('tiktok'));
+router.get('/tiktok/callback', passport.authenticate('tiktok', { failureRedirect: '/login' }), handleSocialCallback);
 
 // LinkedIn
 router.get('/linkedin', passport.authenticate('linkedin', { state: 'SOME_STATE' }));
