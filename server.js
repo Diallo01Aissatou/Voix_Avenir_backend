@@ -123,6 +123,11 @@ app.get('/', (req, res) => {
   res.send('<h1>Bienvenue sur le Backend de Mentora GN</h1><p>Le serveur est opérationnel.</p>');
 });
 
+// Route de vérification TikTok
+app.get('/tiktokk6ct27zyPP0BJGTfqzyXX4AKDF2rsRFU.txt', (req, res) => {
+  res.send('tiktokk6ct27zyPP0BJGTfqzyXX4AKDF2rsRFU');
+});
+
 // Route de test
 app.get('/api/test', (req, res) => {
   res.json({ message: 'API fonctionne', timestamp: new Date() });
