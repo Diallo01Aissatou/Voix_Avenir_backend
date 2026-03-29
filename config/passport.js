@@ -79,8 +79,8 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
 // Stratégie TikTok
 if (process.env.TIKTOK_CLIENT_KEY && process.env.TIKTOK_CLIENT_SECRET) {
   passport.use(new TikTokStrategy({
-      clientID: process.env.TIKTOK_CLIENT_KEY,
-      clientSecret: process.env.TIKTOK_CLIENT_SECRET,
+      clientID: process.env.TIKTOK_CLIENT_KEY.trim(),
+      clientSecret: process.env.TIKTOK_CLIENT_SECRET.trim(),
       callbackURL: "/api/auth/tiktok/callback",
       proxy: true
     },
