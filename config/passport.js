@@ -82,6 +82,7 @@ if (process.env.TIKTOK_CLIENT_KEY && process.env.TIKTOK_CLIENT_SECRET) {
       clientID: process.env.TIKTOK_CLIENT_KEY.trim(),
       clientSecret: process.env.TIKTOK_CLIENT_SECRET.trim(),
       callbackURL: "/api/auth/tiktok/callback",
+      scope: ['user.info.profile'],
       proxy: true
     },
     async (accessToken, refreshToken, profile, done) => {
