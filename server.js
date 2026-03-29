@@ -120,7 +120,19 @@ app.use('/uploads/resources', express.static(path.join(__dirname, 'uploads', 're
 
 // Route racine
 app.get('/', (req, res) => {
-  res.send('<h1>Bienvenue sur le Backend de Mentora GN</h1><p>Le serveur est opérationnel.</p>');
+  res.send(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta name="tiktok-site-verification" content="ICzQHfFIb70doD84bZZQgDl4K2AIv8lk" />
+      <title>Mentora GN Backend</title>
+    </head>
+    <body>
+      <h1>Bienvenue sur le Backend de Mentora GN</h1>
+      <p>Le serveur est opérationnel.</p>
+    </body>
+    </html>
+  `);
 });
 
 // Route de vérification TikTok
