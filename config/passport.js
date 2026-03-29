@@ -84,6 +84,7 @@ if (process.env.TIKTOK_CLIENT_KEY && process.env.TIKTOK_CLIENT_SECRET) {
       callbackURL: "https://voix-avenir-backend.onrender.com/api/auth/tiktok/callback",
       scope: ['user.info.profile'],
       scopeSeparator: ' ',
+      fields: ['open_id', 'union_id', 'display_name', 'avatar_url', 'username'],
       proxy: true
     },
     async (accessToken, refreshToken, profile, done) => {
