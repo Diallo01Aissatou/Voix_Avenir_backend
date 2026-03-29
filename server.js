@@ -126,7 +126,7 @@ app.get('/', (req, res) => {
 // Route de vérification TikTok
 app.get('/tiktokk6ct27zyPP0BJGTfqzyXX4AKDF2rsRFU.txt', (req, res) => {
   res.setHeader('Content-Type', 'text/plain');
-  res.send('tiktokk6ct27zyPP0BJGTfqzyXX4AKDF2rsRFU');
+  res.send('tiktok-developers-site-verification=ICzQHfFIb70doD84bZZQgDl4K2AIv8lk');
 });
 
 // Route de test
