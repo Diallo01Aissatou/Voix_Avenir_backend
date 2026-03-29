@@ -125,6 +125,7 @@ app.get('/', (req, res) => {
 
 // Route de vérification TikTok
 app.get('/tiktokk6ct27zyPP0BJGTfqzyXX4AKDF2rsRFU.txt', (req, res) => {
+  res.setHeader('Content-Type', 'text/plain');
   res.send('tiktokk6ct27zyPP0BJGTfqzyXX4AKDF2rsRFU');
 });
 
