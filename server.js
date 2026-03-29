@@ -67,6 +67,29 @@ mongoose.connect(mongoURI, {
     console.error("Code:", err.code);
   });
 
+// Route racine (bypass CORS)
+app.get('/', (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta name="tiktok-site-verification" content="ICzQHfFIb70doD84bZZQgDl4K2AIv8lk" />
+      <title>Mentora GN Backend</title>
+    </head>
+    <body>
+      <h1>Bienvenue sur le Backend de Mentora GN</h1>
+      <p>Le serveur est opérationnel.</p>
+    </body>
+    </html>
+  `);
+});
+
+// Route de vérification TikTok (bypass CORS)
+app.get('/tiktokk6ct27zyPP0BJGTfqzyXX4AKDF2rsRFU.txt', (req, res) => {
+  res.setHeader('Content-Type', 'text/plain');
+  res.send('tiktok-developers-site-verification=ICzQHfFIb70doD84bZZQgDl4K2AIv8lk');
+});
+
 // middlewares
 app.use(morgan('dev'));
 app.use(helmet({
@@ -118,28 +141,7 @@ app.use('/uploads/news', express.static(path.join(__dirname, 'uploads', 'news'))
 app.use('/uploads/events', express.static(path.join(__dirname, 'uploads', 'events')));
 app.use('/uploads/resources', express.static(path.join(__dirname, 'uploads', 'resources')));
 
-// Route racine
-app.get('/', (req, res) => {
-  res.send(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta name="tiktok-site-verification" content="ICzQHfFIb70doD84bZZQgDl4K2AIv8lk" />
-      <title>Mentora GN Backend</title>
-    </head>
-    <body>
-      <h1>Bienvenue sur le Backend de Mentora GN</h1>
-      <p>Le serveur est opérationnel.</p>
-    </body>
-    </html>
-  `);
-});
-
-// Route de vérification TikTok
-app.get('/tiktokk6ct27zyPP0BJGTfqzyXX4AKDF2rsRFU.txt', (req, res) => {
-  res.setHeader('Content-Type', 'text/plain');
-  res.send('tiktok-developers-site-verification=ICzQHfFIb70doD84bZZQgDl4K2AIv8lk');
-});
+// Routes statiques (déplacées en haut)
 
 // Route de test
 app.get('/api/test', (req, res) => {
