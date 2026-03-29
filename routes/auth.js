@@ -76,7 +76,30 @@ router.get('/google/callback', passport.authenticate('google', { failureRedirect
 
 // TikTok
 router.get('/tiktok', passport.authenticate('tiktok'));
-router.get('/tiktok/callback', passport.authenticate('tiktok', { failureRedirect: '/login' }), handleSocialCallback);
+
+router.get('/tiktok/callback', (req, res, next) => {
+  passport.authenticate('tiktok', (err, user, info) => {
+    if (err) {
+      console.error('Erreur TikTok Callback:', err);
+      // On retourne l'erreur complète pour débugger
+      return res.status(500).json({ 
+        message: "Échec de l'authentification TikTok", 
+        error: err.message,
+        details: err.stack
+      });
+    }
+    if (!user) {
+      return res.status(401).json({ 
+        message: "Authentification TikTok réussie mais aucun utilisateur n'a pu être créé/trouvé.",
+        info 
+      });
+    }
+    req.logIn(user, (err) => {
+      if (err) return next(err);
+      return handleSocialCallback(req, res);
+    });
+  })(req, res, next);
+});
 
 // LinkedIn
 router.get('/linkedin', passport.authenticate('linkedin', { state: 'SOME_STATE' }));
