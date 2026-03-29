@@ -78,20 +78,20 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
 
 // Stratégie TikTok
 if (process.env.TIKTOK_CLIENT_KEY && process.env.TIKTOK_CLIENT_SECRET) {
-  passport.use(new TikTokStrategy({
+  const tiktokStrategy = new TikTokStrategy({
       clientID: process.env.TIKTOK_CLIENT_KEY.trim(),
       clientSecret: process.env.TIKTOK_CLIENT_SECRET.trim(),
       callbackURL: "https://voix-avenir-backend.onrender.com/api/auth/tiktok/callback",
       scope: ['user.info.profile'],
       scopeSeparator: ' ',
-      fields: ['open_id', 'union_id', 'display_name', 'avatar_url', 'username'],
       proxy: true
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
+        console.log('TikTok Profile received:', profile.id);
         let user = await User.findOne({ tiktokId: profile.id });
         if (!user) {
-          const email = profile.emails && profile.emails.length > 0 ? profile.emails[0].value : `${profile.id}@tiktok.com`;
+          const email = profile.email || `${profile.id}@tiktok.com`;
           user = await User.findOne({ email });
           if (user) {
             user.tiktokId = profile.id;
@@ -103,16 +103,57 @@ if (process.env.TIKTOK_CLIENT_KEY && process.env.TIKTOK_CLIENT_SECRET) {
               tiktokId: profile.id,
               role: 'mentoree',
               verified: true,
-              photo: profile.photos && profile.photos.length > 0 ? profile.photos[0].value : null
+              photo: profile.photo || null
             });
           }
         }
         return done(null, user);
       } catch (err) {
+        console.error('Error in TikTok strategy callback:', err);
         return done(err, null);
       }
     }
-  ));
+  );
+
+  // Override userProfile to use V2 API manually if needed or to debug
+  tiktokStrategy.userProfile = function(accessToken, done) {
+    const url = 'https://open.tiktokapis.com/v2/user/info/?fields=open_id,union_id,display_name,avatar_url,username';
+    
+    fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`
+      }
+    })
+    .then(res => res.json())
+    .then(json => {
+      console.log('TikTok V2 API Response:', JSON.stringify(json));
+      if (json.error && json.error.code !== 'ok') {
+        return done(new Error(`TikTok API error: ${json.error.message} (${json.error.code})`));
+      }
+      
+      if (!json.data || !json.data.user) {
+        return done(new Error('TikTok API returned no user data'));
+      }
+
+      const user = json.data.user;
+      const profile = {
+        provider: 'tiktok',
+        id: user.open_id,
+        displayName: user.display_name,
+        username: user.username,
+        photo: user.avatar_url,
+        _raw: JSON.stringify(json),
+        _json: json
+      };
+      done(null, profile);
+    })
+    .catch(err => {
+      console.error('TikTok Profile Fetch Exception:', err);
+      done(err);
+    });
+  };
+
+  passport.use(tiktokStrategy);
 }
 
 // Stratégie LinkedIn
