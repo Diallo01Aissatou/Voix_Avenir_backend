@@ -82,9 +82,9 @@ if (process.env.TIKTOK_CLIENT_KEY && process.env.TIKTOK_CLIENT_SECRET) {
       clientID: process.env.TIKTOK_CLIENT_KEY.trim(),
       clientSecret: process.env.TIKTOK_CLIENT_SECRET.trim(),
       callbackURL: "https://voix-avenir-backend.onrender.com/api/auth/tiktok/callback",
-      scope: ['user.info.profile'],
+      scope: ['user.info.basic', 'user.info.profile'],
       scopeSeparator: ' ',
-      proxy: false
+      proxy: true
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
