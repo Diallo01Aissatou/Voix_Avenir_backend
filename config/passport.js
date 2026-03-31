@@ -82,7 +82,7 @@ if (process.env.TIKTOK_CLIENT_KEY && process.env.TIKTOK_CLIENT_SECRET) {
       clientID: process.env.TIKTOK_CLIENT_KEY.trim(),
       clientSecret: process.env.TIKTOK_CLIENT_SECRET.trim(),
       callbackURL: "https://voix-avenir-backend.onrender.com/api/auth/tiktok/callback",
-      scope: ['user.info.basic', 'user.info.profile'],
+      scope: ['user.info.basic'],
       scopeSeparator: ' ',
       proxy: true
     },
@@ -117,7 +117,7 @@ if (process.env.TIKTOK_CLIENT_KEY && process.env.TIKTOK_CLIENT_SECRET) {
 
   // Override userProfile to use V2 API manually if needed or to debug
   tiktokStrategy.userProfile = function(accessToken, done) {
-    const url = 'https://open.tiktokapis.com/v2/user/info/?fields=open_id,union_id,display_name,avatar_url,username';
+    const url = 'https://open.tiktokapis.com/v2/user/info/?fields=open_id,union_id,display_name,avatar_url';
     
     fetch(url, {
       headers: {
@@ -140,7 +140,7 @@ if (process.env.TIKTOK_CLIENT_KEY && process.env.TIKTOK_CLIENT_SECRET) {
         provider: 'tiktok',
         id: user.open_id,
         displayName: user.display_name,
-        username: user.username,
+        username: user.open_id,
         photo: user.avatar_url,
         _raw: JSON.stringify(json),
         _json: json
