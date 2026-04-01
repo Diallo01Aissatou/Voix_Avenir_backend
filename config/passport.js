@@ -167,9 +167,6 @@ if (process.env.TIKTOK_CLIENT_KEY && process.env.TIKTOK_CLIENT_SECRET) {
     });
   };
 
-    });
-  };
-
   passport.use(tiktokStrategy);
 }
 
