@@ -84,9 +84,10 @@ if (process.env.TIKTOK_CLIENT_KEY && process.env.TIKTOK_CLIENT_SECRET) {
       callbackURL: "https://voix-avenir-backend.onrender.com/api/auth/tiktok/callback",
       scope: ['user.info.basic'],
       scopeSeparator: ' ',
-      proxy: true
+      proxy: true,
+      passReqToCallback: true
     },
-    async (accessToken, refreshToken, profile, done) => {
+    async (req, accessToken, refreshToken, profile, done) => {
       try {
         console.log('TikTok Profile received:', profile.id);
         let user = await User.findOne({ tiktokId: profile.id });
@@ -97,11 +98,24 @@ if (process.env.TIKTOK_CLIENT_KEY && process.env.TIKTOK_CLIENT_SECRET) {
             user.tiktokId = profile.id;
             await user.save();
           } else {
+            // Extraire le rôle du state OAuth
+            let role = 'mentoree';
+            if (req.query.state) {
+              try {
+                const state = JSON.parse(req.query.state);
+                if (state.role && ['mentore', 'mentoree', 'admin'].includes(state.role)) {
+                  role = state.role;
+                }
+              } catch (e) {
+                console.error('Erreur parsing state OAuth TikTok:', e);
+              }
+            }
+
             user = await User.create({
               name: profile.displayName || profile.username || 'TikTok User',
               email: email,
               tiktokId: profile.id,
-              role: 'mentoree',
+              role: role,
               verified: true,
               photo: profile.photo || null
             });

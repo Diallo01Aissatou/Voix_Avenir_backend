@@ -75,7 +75,12 @@ router.get('/google', (req, res, next) => {
 router.get('/google/callback', passport.authenticate('google', { failureRedirect: '/login' }), handleSocialCallback);
 
 // TikTok
-router.get('/tiktok', passport.authenticate('tiktok'));
+router.get('/tiktok', (req, res, next) => {
+  const role = req.query.role || 'mentoree';
+  passport.authenticate('tiktok', { 
+    state: JSON.stringify({ role })
+  })(req, res, next);
+});
 
 router.get('/tiktok/callback', (req, res, next) => {
   passport.authenticate('tiktok', (err, user, info) => {
