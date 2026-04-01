@@ -167,6 +167,26 @@ if (process.env.TIKTOK_CLIENT_KEY && process.env.TIKTOK_CLIENT_SECRET) {
     });
   };
 
+  // Debug logging to catch the real error from TikTok V2
+  const originalRequest = tiktokStrategy._oauth2._request.bind(tiktokStrategy._oauth2);
+  tiktokStrategy._oauth2._request = function(method, url, headers, post_body, access_token, callback) {
+    return originalRequest(method, url, headers, post_body, access_token, (err, data, res) => {
+      if (data) {
+        try {
+          const parsed = JSON.parse(data);
+          if (parsed.error || parsed.error_code) {
+            console.error('--- TIKTOK OAUTH ERROR DETAILS ---');
+            console.error(JSON.stringify(parsed, null, 2));
+            console.error('----------------------------------');
+          }
+        } catch (e) {
+          // data is not JSON or other parsing error
+        }
+      }
+      callback(err, data, res);
+    });
+  };
+
   passport.use(tiktokStrategy);
 }
 
