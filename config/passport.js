@@ -172,7 +172,7 @@ if (process.env.TIKTOK_CLIENT_KEY && process.env.TIKTOK_CLIENT_SECRET) {
 
 // Stratégie LinkedIn
 if (process.env.LINKEDIN_KEY && process.env.LINKEDIN_SECRET) {
-  passport.use(new LinkedInStrategy({
+  const linkedinStrategy = new LinkedInStrategy({
       clientID: process.env.LINKEDIN_KEY,
       clientSecret: process.env.LINKEDIN_SECRET,
       callbackURL: "https://voix-avenir-backend.onrender.com/api/auth/linkedin/callback",
@@ -184,7 +184,7 @@ if (process.env.LINKEDIN_KEY && process.env.LINKEDIN_SECRET) {
       try {
         let user = await User.findOne({ linkedinId: profile.id });
         if (!user) {
-          const email = profile.emails[0]?.value;
+          const email = profile.emails?.[0]?.value;
           if (email) {
             user = await User.findOne({ email });
           }
@@ -212,7 +212,7 @@ if (process.env.LINKEDIN_KEY && process.env.LINKEDIN_SECRET) {
               linkedinId: profile.id,
               role: role,
               verified: true,
-              photo: profile.photos[0]?.value
+              photo: profile.photos?.[0]?.value || null
             });
           }
         }
@@ -222,7 +222,41 @@ if (process.env.LINKEDIN_KEY && process.env.LINKEDIN_SECRET) {
         return done(err, null);
       }
     }
-  ));
+  );
+
+  // Override userProfile pour utiliser l'endpoint OpenID Connect
+  linkedinStrategy.userProfile = function(accessToken, done) {
+    const url = 'https://api.linkedin.com/v2/userinfo';
+    fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`
+      }
+    })
+    .then(res => res.json())
+    .then(json => {
+      console.log('LinkedIn UserInfo Response:', JSON.stringify(json));
+      if (json.error || json.errorCode) {
+        return done(new Error(`LinkedIn API error: ${json.message || json.error}`));
+      }
+
+      const profile = {
+        provider: 'linkedin',
+        id: json.sub,
+        displayName: json.name || `${json.given_name || ''} ${json.family_name || ''}`.trim(),
+        emails: json.email ? [{ value: json.email }] : [],
+        photos: json.picture ? [{ value: json.picture }] : [],
+        _raw: JSON.stringify(json),
+        _json: json
+      };
+      done(null, profile);
+    })
+    .catch(err => {
+      console.error('LinkedIn Profile Fetch Error:', err);
+      done(err);
+    });
+  };
+
+  passport.use(linkedinStrategy);
 } else {
   console.warn('LINKEDIN_KEY ou LINKEDIN_SECRET manquants. LinkedIn OAuth ne sera pas activé.');
 }
