@@ -107,7 +107,13 @@ router.get('/tiktok/callback', (req, res, next) => {
 });
 
 // LinkedIn
-router.get('/linkedin', passport.authenticate('linkedin', { state: 'SOME_STATE' }));
+router.get('/linkedin', (req, res, next) => {
+  const role = req.query.role || 'mentoree';
+  passport.authenticate('linkedin', { 
+    state: JSON.stringify({ role })
+  })(req, res, next);
+});
+
 router.get('/linkedin/callback', passport.authenticate('linkedin', { failureRedirect: '/login' }), handleSocialCallback);
 
 module.exports = router;

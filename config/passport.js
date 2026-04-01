@@ -175,24 +175,42 @@ if (process.env.LINKEDIN_KEY && process.env.LINKEDIN_SECRET) {
   passport.use(new LinkedInStrategy({
       clientID: process.env.LINKEDIN_KEY,
       clientSecret: process.env.LINKEDIN_SECRET,
-      callbackURL: "/api/auth/linkedin/callback",
-      scope: ['r_emailaddress', 'r_liteprofile'],
-      proxy: true
+      callbackURL: "https://voix-avenir-backend.onrender.com/api/auth/linkedin/callback",
+      scope: ['openid', 'profile', 'email'],
+      proxy: true,
+      passReqToCallback: true
     },
-    async (accessToken, refreshToken, profile, done) => {
+    async (req, accessToken, refreshToken, profile, done) => {
       try {
         let user = await User.findOne({ linkedinId: profile.id });
         if (!user) {
-          user = await User.findOne({ email: profile.emails[0].value });
+          const email = profile.emails[0]?.value;
+          if (email) {
+            user = await User.findOne({ email });
+          }
+          
           if (user) {
             user.linkedinId = profile.id;
             await user.save();
           } else {
+            // Extraire le rôle du state OAuth
+            let role = 'mentoree';
+            if (req.query.state) {
+              try {
+                const state = JSON.parse(req.query.state);
+                if (state.role && ['mentore', 'mentoree', 'admin'].includes(state.role)) {
+                  role = state.role;
+                }
+              } catch (e) {
+                console.error('Erreur parsing state OAuth LinkedIn:', e);
+              }
+            }
+
             user = await User.create({
               name: profile.displayName,
-              email: profile.emails[0].value,
+              email: email || `${profile.id}@linkedin.com`,
               linkedinId: profile.id,
-              role: 'mentoree',
+              role: role,
               verified: true,
               photo: profile.photos[0]?.value
             });
@@ -200,6 +218,7 @@ if (process.env.LINKEDIN_KEY && process.env.LINKEDIN_SECRET) {
         }
         return done(null, user);
       } catch (err) {
+        console.error('Error in LinkedIn strategy callback:', err);
         return done(err, null);
       }
     }
