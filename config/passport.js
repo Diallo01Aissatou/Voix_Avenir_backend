@@ -223,6 +223,8 @@ if (process.env.LINKEDIN_KEY && process.env.LINKEDIN_SECRET) {
       }
     }
   ));
+} else {
+  console.warn('LINKEDIN_KEY ou LINKEDIN_SECRET manquants. LinkedIn OAuth ne sera pas activé.');
 }
 
 module.exports = passport;

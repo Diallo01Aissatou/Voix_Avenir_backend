@@ -109,6 +109,15 @@ router.get('/tiktok/callback', (req, res, next) => {
 // LinkedIn
 router.get('/linkedin', (req, res, next) => {
   const role = req.query.role || 'mentoree';
+  
+  // Vérifier si la stratégie est enregistrée
+  if (!passport._strategies.linkedin) {
+    return res.status(501).json({ 
+      message: "L'authentification LinkedIn n'est pas configurée côté serveur.",
+      error: "LINKEDIN_KEY and LINKEDIN_SECRET environment variables are missing on Render."
+    });
+  }
+
   passport.authenticate('linkedin', { 
     state: JSON.stringify({ role })
   })(req, res, next);
