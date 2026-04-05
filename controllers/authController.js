@@ -4,6 +4,19 @@ const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const User = require('../models/User');
 
+// Configuration du transporteur d'e-mails (Singleton)
+const createTransporter = () => {
+    return nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+            user: process.env.EMAIL_USERS,
+            pass: process.env.EMAIL_PASSS
+        }
+    });
+};
+
+const transporter = createTransporter();
+
 // Blacklist en mémoire pour les tokens invalidés
 const tokenBlacklist = new Set();
 
@@ -229,50 +242,36 @@ exports.forgotPassword = async (req, res) => {
 
     // Configuration Gmail SMTP
     console.log('Tentative d\'envoi email à:', user.email);
-    console.log('Depuis:', process.env.EMAIL_USERS);
 
-    try {
-      const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-          user: process.env.EMAIL_USERS,
-          pass: process.env.EMAIL_PASSS
-        }
-      });
-
-      const mailResult = await transporter.sendMail({
-        from: process.env.EMAIL_USERS,
-        to: user.email,
-        subject: 'Réinitialisation de votre mot de passe - Mentorat GN',
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <h2 style="color: #7c3aed; text-align: center;">Réinitialisation de mot de passe</h2>
-            <p>Bonjour <strong>${user.name}</strong>,</p>
-            <p>Vous avez demandé la réinitialisation de votre mot de passe pour votre compte Mentorat GN.</p>
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="${resetUrl}" style="display: inline-block; padding: 15px 30px; background-color: #7c3aed; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">Réinitialiser mon mot de passe</a>
-            </div>
-            <p><strong>Ce lien expirera dans 10 minutes.</strong></p>
-            <p>Si vous n'avez pas demandé cette réinitialisation, ignorez cet email.</p>
-            <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
-            <p style="color: #666; font-size: 12px; text-align: center;">Équipe Mentorat GN</p>
+    // Envoi de l'e-mail en arrière-plan sans bloquer la réponse client
+    transporter.sendMail({
+      from: process.env.EMAIL_USERS,
+      to: user.email,
+      subject: 'Réinitialisation de votre mot de passe - Mentorat GN',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #7c3aed; text-align: center;">Réinitialisation de mot de passe</h2>
+          <p>Bonjour <strong>${user.name}</strong>,</p>
+          <p>Vous avez demandé la réinitialisation de votre mot de passe pour votre compte Mentorat GN.</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${resetUrl}" style="display: inline-block; padding: 15px 30px; background-color: #7c3aed; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">Réinitialiser mon mot de passe</a>
           </div>
-        `
-      });
+          <p><strong>Ce lien expirera dans 10 minutes.</strong></p>
+          <p>Si vous n'avez pas demandé cette réinitialisation, ignorez cet email.</p>
+          <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
+          <p style="color: #666; font-size: 12px; text-align: center;">Équipe Mentorat GN</p>
+        </div>
+      `
+    }).then(info => {
+      console.log('Email envoyé avec succès en arrière-plan:', info.messageId);
+    }).catch(err => {
+      console.error('Erreur d\'envoi email en arrière-plan:', err);
+    });
 
-      console.log('Email envoyé avec succès:', mailResult.messageId);
-
-      res.status(200).json({
-        message: "Email de réinitialisation envoyé avec succès à " + user.email
-      });
-    } catch (emailError) {
-      console.error('Erreur email détaillée:', emailError);
-      res.status(200).json({
-        message: "Erreur d'envoi email",
-        resetUrl: resetUrl,
-        error: emailError.message
-      });
-    }
+    // Réponse immédiate au client
+    res.status(200).json({
+      message: "Un email de réinitialisation a été envoyé à votre adresse email."
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Erreur serveur", error: err.message });
