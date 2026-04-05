@@ -152,10 +152,10 @@ exports.login = async (req, res) => {
     if (!email || !password) return res.status(400).json({ message: 'Email ou mot de passe manquant' });
 
     const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ message: 'Email ou mot de passe incorrecte' });
+    if (!user) return res.status(400).json({ message: "Aucun compte n'est associé à cette adresse e-mail. Veuillez vérifier ou vous inscrire." });
 
     const match = await bcrypt.compare(password, user.password);
-    if (!match) return res.status(400).json({ message: 'Email ou mot de passe incorrecte' });
+    if (!match) return res.status(400).json({ message: "Le mot de passe que vous avez saisi est incorrect." });
 
     sendTokenInCookie(res, user, "Connexion réussie");
 

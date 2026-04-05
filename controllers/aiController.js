@@ -5,7 +5,7 @@ const Partner = require('../models/Partner');
 
 // Initialisation de Gemini avec la clé API
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+// Le modèle sera initialisé dynamiquement avec le contexte système dans exports.chat
 
 /**
  * Récupère le contexte de la plateforme pour l'IA
@@ -61,44 +61,33 @@ exports.chat = async (req, res) => {
 
         const systemContext = await getPlatformContext();
 
+        const model = genAI.getGenerativeModel({ 
+            model: "gemini-1.5-flash",
+            systemInstruction: systemContext
+        });
+
         // Séparer le dernier message (la question actuelle)
         const userMessage = messages[messages.length - 1].content;
 
-        // Préparer l'historique Gemini (doit ALTERNER user/model)
-        // Gemini attend: user -> model -> user -> model...
         let history = [];
-
-        // On commence par injecter le contexte système comme un premier message "user"
-        history.push({
-            role: 'user',
-            parts: [{ text: systemContext }],
-        });
-
-        // Réponse confirmant la prise en compte du contexte
-        history.push({
-            role: 'model',
-            parts: [{ text: "D'accord, je suis prêt à aider les utilisatrices de Mentorat-GN avec bienveillance et expertise." }],
-        });
-
-        // Ajouter les messages précédents du chat (en filtrant pour assurer l'alternance si nécessaire)
-        // On commence à l'index 0 mais ATTENTION: le premier message de `messages` est souvent le "Bonjour" du bot (model).
-        // Si le dernier message de `history` est 'model', le suivant DOIT être 'user'.
-
-        messages.slice(0, -1).forEach(m => {
+        const previousMessages = messages.slice(0, -1);
+        
+        previousMessages.forEach(m => {
             const role = m.role === 'assistant' ? 'model' : 'user';
-            const lastRole = history[history.length - 1].role;
-
-            // On n'ajoute que si le rôle alterne
+            
+            if (history.length === 0) {
+                // Gemini exige que l'historique commence logiquement. Si on a un message 'model' en premier, 
+                // on ajoute d'abord un faux message 'user' pour équilibrer l'alternance.
+                if (role === 'model') {
+                    history.push({ role: 'user', parts: [{ text: "Bonjour" }] });
+                }
+            }
+            
+            const lastRole = history.length > 0 ? history[history.length - 1].role : null;
             if (role !== lastRole) {
-                history.push({
-                    role: role,
-                    parts: [{ text: m.content }],
-                });
+                history.push({ role, parts: [{ text: m.content }] });
             }
         });
-
-        // Si après tout ça, le dernier message est 'model', Gemini acceptera le sendMessage(userMessage) 
-        // car sendMessage envoie un message 'user'.
 
         const chat = model.startChat({
             history: history,
