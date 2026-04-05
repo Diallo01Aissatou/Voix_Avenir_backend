@@ -62,7 +62,7 @@ exports.chat = async (req, res) => {
         const systemContext = await getPlatformContext();
 
         const model = genAI.getGenerativeModel({ 
-            model: "gemini-1.5-flash",
+            model: "gemini-2.5-flash",
             systemInstruction: systemContext
         });
 
