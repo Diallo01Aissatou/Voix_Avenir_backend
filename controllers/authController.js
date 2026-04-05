@@ -8,15 +8,24 @@ const User = require('../models/User');
 let transporter;
 const getTransporter = () => {
     if (!transporter) {
-        console.log('Initialisation du transporteur avec:', process.env.EMAIL_USERS);
+        // Nettoyage du mot de passe (enlever les espaces s'il y en a)
+        const cleanPass = (process.env.EMAIL_PASSS || '').replace(/\s+/g, '');
+        
+        console.log('Initialisation du transporteur SMTP Gmail (Port 465) pour:', process.env.EMAIL_USERS);
+        
         transporter = nodemailer.createTransport({
-            service: 'gmail',
+            host: 'smtp.gmail.com',
+            port: 465,
+            secure: true, // Use SSL
             auth: {
                 user: process.env.EMAIL_USERS,
-                pass: process.env.EMAIL_PASSS
+                pass: cleanPass
             },
+            connectionTimeout: 10000, // 10 seconds
+            greetingTimeout: 10000,
+            socketTimeout: 10000,
             tls: {
-                rejectUnauthorized: false
+                rejectUnauthorized: false // Helps with some cloud network cert issues
             }
         });
     }
