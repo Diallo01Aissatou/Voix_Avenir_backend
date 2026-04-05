@@ -4,18 +4,24 @@ const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const User = require('../models/User');
 
-// Configuration du transporteur d'e-mails (Singleton)
-const createTransporter = () => {
-    return nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-            user: process.env.EMAIL_USERS,
-            pass: process.env.EMAIL_PASSS
-        }
-    });
+// Configuration du transporteur d'e-mails (Lazy Singleton)
+let transporter;
+const getTransporter = () => {
+    if (!transporter) {
+        console.log('Initialisation du transporteur avec:', process.env.EMAIL_USERS);
+        transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: process.env.EMAIL_USERS,
+                pass: process.env.EMAIL_PASSS
+            },
+            tls: {
+                rejectUnauthorized: false
+            }
+        });
+    }
+    return transporter;
 };
-
-const transporter = createTransporter();
 
 // Blacklist en mémoire pour les tokens invalidés
 const tokenBlacklist = new Set();
@@ -244,12 +250,12 @@ exports.forgotPassword = async (req, res) => {
     console.log('Tentative d\'envoi email à:', user.email);
 
     // Envoi de l'e-mail en arrière-plan sans bloquer la réponse client
-    transporter.sendMail({
-      from: process.env.EMAIL_USERS,
+    const mailOptions = {
+      from: `"Mentorat GN" <${process.env.EMAIL_USERS}>`,
       to: user.email,
       subject: 'Réinitialisation de votre mot de passe - Mentorat GN',
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
           <h2 style="color: #7c3aed; text-align: center;">Réinitialisation de mot de passe</h2>
           <p>Bonjour <strong>${user.name}</strong>,</p>
           <p>Vous avez demandé la réinitialisation de votre mot de passe pour votre compte Mentorat GN.</p>
@@ -257,15 +263,18 @@ exports.forgotPassword = async (req, res) => {
             <a href="${resetUrl}" style="display: inline-block; padding: 15px 30px; background-color: #7c3aed; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">Réinitialiser mon mot de passe</a>
           </div>
           <p><strong>Ce lien expirera dans 10 minutes.</strong></p>
-          <p>Si vous n'avez pas demandé cette réinitialisation, ignorez cet email.</p>
+          <p>Si vous n'avez pas demandé cette réinitialisation, ignorez simplement cet email.</p>
           <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
-          <p style="color: #666; font-size: 12px; text-align: center;">Équipe Mentorat GN</p>
+          <p style="color: #666; font-size: 12px; text-align: center;">Équipe Mentorat GN - Propulsé par Voix d'Avenir</p>
         </div>
       `
-    }).then(info => {
-      console.log('Email envoyé avec succès en arrière-plan:', info.messageId);
+    };
+
+    getTransporter().sendMail(mailOptions).then(info => {
+      console.log('✅ Email envoyé avec succès à', user.email, ':', info.messageId);
     }).catch(err => {
-      console.error('Erreur d\'envoi email en arrière-plan:', err);
+      console.error('❌ ERREUR D\'ENVOI EMAIL (Background):', err.message);
+      console.error('Détails:', err);
     });
 
     // Réponse immédiate au client
