@@ -11,21 +11,21 @@ const getTransporter = () => {
         // Nettoyage du mot de passe (enlever les espaces s'il y en a)
         const cleanPass = (process.env.EMAIL_PASSS || '').replace(/\s+/g, '');
         
-        console.log('Initialisation du transporteur SMTP Gmail (Port 465) pour:', process.env.EMAIL_USERS);
+        console.log('Initialisation du transporteur SMTP Gmail (Port 587 STARTTLS) pour:', process.env.EMAIL_USERS);
         
         transporter = nodemailer.createTransport({
             host: 'smtp.gmail.com',
-            port: 465,
-            secure: true, // Use SSL
+            port: 587,
+            secure: false, // Use STARTTLS
             auth: {
                 user: process.env.EMAIL_USERS,
                 pass: cleanPass
             },
-            connectionTimeout: 10000, // 10 seconds
-            greetingTimeout: 10000,
-            socketTimeout: 10000,
+            connectionTimeout: 15000, // 15 seconds
+            greetingTimeout: 15000,
+            socketTimeout: 30000,
             tls: {
-                rejectUnauthorized: false // Helps with some cloud network cert issues
+                rejectUnauthorized: false
             }
         });
     }
