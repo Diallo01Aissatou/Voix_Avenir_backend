@@ -374,5 +374,49 @@ exports.createAdmin = async (req, res) => {
 
 
 
+// Route de diagnostic SMTP pour Render
+exports.testSmtp = async (req, res) => {
+    const results = [];
+    const configs = [
+        { host: 'smtp.gmail.com', port: 465, secure: true, label: 'Gmail 465 (SSL)' },
+        { host: 'smtp.gmail.com', port: 587, secure: false, label: 'Gmail 587 (STARTTLS)' },
+        { host: 'smtp.gmail.com', port: 25, secure: false, label: 'Gmail 25 (Standard)' }
+    ];
+
+    const cleanPass = (process.env.EMAIL_PASSS || '').replace(/\s+/g, '');
+
+    for (const config of configs) {
+        console.log(`Test de connexion: ${config.label}...`);
+        const testTransporter = nodemailer.createTransport({
+            host: config.host,
+            port: config.port,
+            secure: config.secure,
+            auth: {
+                user: process.env.EMAIL_USERS,
+                pass: cleanPass
+            },
+            connectionTimeout: 5000,
+            greetingTimeout: 5000
+        });
+
+        try {
+            await testTransporter.verify();
+            results.push({ label: config.label, status: 'SUCCÈS ✅' });
+        } catch (err) {
+            results.push({ label: config.label, status: 'ÉCHEC ❌', error: err.message });
+        }
+    }
+
+    res.status(200).json({
+        message: "Diagnostic SMTP terminé",
+        results: results,
+        diagnostics: {
+            node_env: process.env.NODE_ENV,
+            email_user: process.env.EMAIL_USERS,
+            password_configured: !!process.env.EMAIL_PASSS
+        }
+    });
+};
+
 // Export blacklist
 exports.tokenBlacklist = tokenBlacklist;
