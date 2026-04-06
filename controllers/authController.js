@@ -5,29 +5,36 @@ const nodemailer = require('nodemailer');
 const User = require('../models/User');
 
 // Configuration du transporteur d'e-mails (Lazy Singleton)
+// Configuration du transporteur d'e-mails (Lazy Singleton)
 let transporter;
 const getTransporter = () => {
     if (!transporter) {
-        // Nettoyage du mot de passe (enlever les espaces s'il y en a)
-        const cleanPass = (process.env.EMAIL_PASSS || '').replace(/\s+/g, '');
-        
-        console.log('Initialisation du transporteur SMTP Gmail (Port 587 STARTTLS) pour:', process.env.EMAIL_USERS);
-        
-        transporter = nodemailer.createTransport({
-            host: 'smtp.gmail.com',
-            port: 587,
-            secure: false, // Use STARTTLS
-            auth: {
-                user: process.env.EMAIL_USERS,
-                pass: cleanPass
-            },
-            connectionTimeout: 15000, // 15 seconds
-            greetingTimeout: 15000,
-            socketTimeout: 30000,
-            tls: {
-                rejectUnauthorized: false
-            }
-        });
+        // Détection de l'environnement : Priorité Mailtrap sur Render à cause des blocages SMTP Gmail
+        if (process.env.MAILTRAP_USER && process.env.MAILTRAP_PASS) {
+            console.log('Utilisation du transporteur Mailtrap (Port 2525) pour Render');
+            transporter = nodemailer.createTransport({
+                host: process.env.MAILTRAP_HOST || 'sandbox.smtp.mailtrap.io',
+                port: parseInt(process.env.MAILTRAP_PORT) || 2525,
+                auth: {
+                    user: process.env.MAILTRAP_USER,
+                    pass: process.env.MAILTRAP_PASS
+                }
+            });
+        } else {
+            // Fallback Gmail (utile en local si pas de Mailtrap configuré)
+            const cleanPass = (process.env.EMAIL_PASSS || '').replace(/\s+/g, '');
+            console.log('Utilisation du transporteur Gmail (Port 587)');
+            transporter = nodemailer.createTransport({
+                host: 'smtp.gmail.com',
+                port: 587,
+                secure: false,
+                auth: {
+                    user: process.env.EMAIL_USERS,
+                    pass: cleanPass
+                },
+                tls: { rejectUnauthorized: false }
+            });
+        }
     }
     return transporter;
 };
@@ -380,21 +387,23 @@ exports.testSmtp = async (req, res) => {
     const configs = [
         { host: 'smtp.gmail.com', port: 465, secure: true, label: 'Gmail 465 (SSL)' },
         { host: 'smtp.gmail.com', port: 587, secure: false, label: 'Gmail 587 (STARTTLS)' },
-        { host: 'smtp.gmail.com', port: 25, secure: false, label: 'Gmail 25 (Standard)' }
+        { host: 'sandbox.smtp.mailtrap.io', port: 2525, secure: false, label: 'Mailtrap 2525' }
     ];
 
     const cleanPass = (process.env.EMAIL_PASSS || '').replace(/\s+/g, '');
 
     for (const config of configs) {
         console.log(`Test de connexion: ${config.label}...`);
+        
+        // Déterminer les identifiants
+        const user = config.label.includes('Mailtrap') ? process.env.MAILTRAP_USER : process.env.EMAIL_USERS;
+        const pass = config.label.includes('Mailtrap') ? process.env.MAILTRAP_PASS : cleanPass;
+
         const testTransporter = nodemailer.createTransport({
             host: config.host,
             port: config.port,
             secure: config.secure,
-            auth: {
-                user: process.env.EMAIL_USERS,
-                pass: cleanPass
-            },
+            auth: { user, pass },
             connectionTimeout: 5000,
             greetingTimeout: 5000
         });
