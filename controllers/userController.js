@@ -53,7 +53,11 @@ exports.getMentores = async (req, res) => {
 // Obtenir la liste des villes
 exports.getCities = async (req, res) => {
   try {
-    const cities = await User.distinct('city', { city: { $ne: null, $ne: '' } });
+    const cities = await User.distinct('city', { 
+      role: 'mentore', 
+      isApproved: true, 
+      city: { $ne: null, $ne: '' } 
+    });
     res.json(cities);
   } catch (error) {
     res.status(500).json({ message: 'Erreur serveur', error: error.message });
@@ -64,7 +68,7 @@ exports.getCities = async (req, res) => {
 exports.getExpertise = async (req, res) => {
   try {
     const expertises = await User.aggregate([
-      { $match: { role: 'mentore', expertise: { $exists: true, $ne: [] } } },
+      { $match: { role: 'mentore', isApproved: true, expertise: { $exists: true, $ne: [] } } },
       { $unwind: '$expertise' },
       { $group: { _id: '$expertise' } },
       { $sort: { _id: 1 } }
