@@ -17,10 +17,24 @@ const baseUser = {
   verified: Joi.boolean(),
 };
 
-exports.updateMeValidator =()=>{ Joi.object({
-  ...baseUser,
-  password: Joi.string().min(6).optional(),
-})};
+exports.updateMeValidator = (req, res, next) => {
+  const schema = Joi.object({
+    ...baseUser,
+    password: Joi.string().min(6).optional(),
+  });
+
+  const { error, value } = schema.validate(req.body, { abortEarly: false });
+
+  if (error) {
+    return res.status(400).json({
+      message: "Validation échouée",
+      errors: error.details.map((err) => err.message),
+    });
+  }
+
+  req.body = value;
+  next();
+};
 
 
 

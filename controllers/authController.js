@@ -104,8 +104,8 @@ const sendTokenInCookie = (res, user, message) => {
       role: user.role, 
       verified: user.verified, 
       email: user.email, 
-      isMasterAdmin: user.isMasterAdmin
-      // photo exclue pour la vitesse de connexion, chargée plus tard via /profile
+      isMasterAdmin: user.isMasterAdmin,
+      photo: user.photo 
     },
     token // Ajout du token dans la réponse JSON
   });

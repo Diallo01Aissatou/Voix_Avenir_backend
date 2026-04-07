@@ -35,9 +35,10 @@ exports.getMentores = async (req, res) => {
     // Ajouter l'URL complète pour les photos
     const usersWithPhotoUrl = users.map(user => {
       const userObj = user.toObject();
-      if (userObj.photo && !userObj.photo.startsWith('http')) {
+      if (userObj.photo && !userObj.photo.startsWith('http') && !userObj.photo.startsWith('data:')) {
         const baseUrl = `${req.protocol}://${req.get('host')}`;
-        userObj.photo = `${baseUrl}/uploads/${userObj.photo.split('/').pop()}`;
+        const fileName = userObj.photo.split('/').pop();
+        userObj.photo = `${baseUrl}/uploads/${fileName}`;
       }
       return userObj;
     });
@@ -180,7 +181,18 @@ exports.getAllUsers = async (req, res) => {
       .sort({ createdAt: -1 });
 
     const total = await User.countDocuments(filter);
-    res.json({ users, total, page: parseInt(page), totalPages: Math.ceil(total / limit) });
+
+    const usersWithPhotoUrl = users.map(user => {
+      const userObj = user.toObject();
+      if (userObj.photo && !userObj.photo.startsWith('http') && !userObj.photo.startsWith('data:')) {
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        const fileName = userObj.photo.split('/').pop();
+        userObj.photo = `${baseUrl}/uploads/${fileName}`;
+      }
+      return userObj;
+    });
+
+    res.json({ users: usersWithPhotoUrl, total, page: parseInt(page), totalPages: Math.ceil(total / limit) });
   } catch (error) {
     res.status(500).json({ message: 'Erreur serveur', error: error.message });
   }
@@ -252,15 +264,33 @@ exports.getPublicStats = async (req, res) => {
 exports.getStats = async (req, res) => {
   try {
     const totalUsers = await User.countDocuments();
-    const totalMentores = await User.countDocuments({ role: 'mentore' });
+    const totalMentores = await User.countDocuments({ role: 'mentore' }); // Total mentores (incluant non-approuvés)
+    const approvedMentores = await User.countDocuments({ role: 'mentore', isApproved: true });
     const totalMentorees = await User.countDocuments({ role: 'mentoree' });
 
-    res.json({
-      totalUsers,
-      totalMentores,
-      totalMentorees
+    let totalRequests = 0;
+    let pendingRequests = 0;
+    let acceptedRequests = 0;
+    try {
+      const Appointment = require('../models/Appointement');
+      totalRequests = await Appointment.countDocuments();
+      pendingRequests = await Appointment.countDocuments({ status: 'pending' });
+      acceptedRequests = await Appointment.countDocuments({ status: 'accepted' });
+    } catch (e) { 
+      console.error('Erreur comptage rendez-vous:', e.message);
+    }
+
+    res.json({ 
+      totalUsers, 
+      totalMentores, 
+      approvedMentores, 
+      totalMentorees, 
+      totalRequests, 
+      pendingRequests, 
+      acceptedRequests 
     });
   } catch (error) {
+    console.error('Erreur getStats:', error);
     res.status(500).json({ message: 'Erreur serveur', error: error.message });
   }
 };
@@ -297,9 +327,10 @@ exports.searchMentors = async (req, res) => {
     // Ajouter l'URL complète pour les photos
     const usersWithPhotoUrl = users.map(user => {
       const userObj = user.toObject();
-      if (userObj.photo && !userObj.photo.startsWith('http')) {
+      if (userObj.photo && !userObj.photo.startsWith('http') && !userObj.photo.startsWith('data:')) {
         const baseUrl = `${req.protocol}://${req.get('host')}`;
-        userObj.photo = `${baseUrl}/uploads/${userObj.photo.split('/').pop()}`;
+        const fileName = userObj.photo.split('/').pop();
+        userObj.photo = `${baseUrl}/uploads/${fileName}`;
       }
       return userObj;
     });
@@ -352,12 +383,21 @@ exports.deleteUser = async (req, res) => {
 // Approuver un mentor (Admin)
 exports.approveMentor = async (req, res) => {
   try {
+    console.log(`Tentative d'approbation pour l'utilisateur ID: ${req.params.id}`);
     const user = await User.findById(req.params.id);
-    if (!user) return res.status(404).json({ message: 'Utilisateur non trouvé' });
-    if (user.role !== 'mentore') return res.status(400).json({ message: 'Cet utilisateur n\'est pas un mentor' });
+    if (!user) {
+      console.log(`Utilisateur non trouvé pour ID: ${req.params.id}`);
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    }
+    
+    if (user.role !== 'mentore') {
+      console.log(`L'utilisateur ${user.email} n'est pas un mentor (rôle: ${user.role})`);
+      return res.status(400).json({ message: 'Cet utilisateur n\'est pas un mentor' });
+    }
 
     user.isApproved = true;
     await user.save();
+    console.log(`Mentor ${user.email} approuvé avec succès`);
 
     // Créer une notification pour le mentor
     try {
@@ -374,42 +414,12 @@ exports.approveMentor = async (req, res) => {
 
     res.json({ success: true, message: 'Mentor approuvé avec succès', user });
   } catch (error) {
+    console.error('Erreur approveMentor:', error);
     res.status(500).json({ message: 'Erreur serveur', error: error.message });
   }
 };
 
-// Statistiques pour l'admin dashboard
-exports.getStats = async (req, res) => {
-  try {
-    const User = require('../models/User');
-    const totalUsers = await User.countDocuments();
-    const totalMentores = await User.countDocuments({ role: 'mentore' }); // Total mentores (incluant non-approuvés)
-    const approvedMentores = await User.countDocuments({ role: 'mentore', isApproved: true });
-    const totalMentorees = await User.countDocuments({ role: 'mentoree' });
-
-    let totalRequests = 0;
-    let pendingRequests = 0;
-    let acceptedRequests = 0;
-    try {
-      const Appointment = require('../models/Appointement');
-      totalRequests = await Appointment.countDocuments();
-      pendingRequests = await Appointment.countDocuments({ status: 'pending' });
-      acceptedRequests = await Appointment.countDocuments({ status: 'accepted' });
-    } catch (e) { /* ignore if model not available */ }
-
-    res.json({ 
-      totalUsers, 
-      totalMentores, 
-      approvedMentores, 
-      totalMentorees, 
-      totalRequests, 
-      pendingRequests, 
-      acceptedRequests 
-    });
-  } catch (error) {
-    res.status(500).json({ message: 'Erreur serveur', error: error.message });
-  }
-};
+// Supprimé car doublon corrigé plus haut
 
 // Upload photo de profil
 exports.uploadProfilePhoto = async (req, res) => {
