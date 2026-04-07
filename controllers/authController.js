@@ -302,6 +302,12 @@ exports.forgotPassword = async (req, res) => {
     // Configuration Gmail SMTP
     console.log('Tentative d\'envoi email à:', user.email);
 
+    // ✅ RÉPONSE IMMÉDIATE AU CLIENT (vitesse maximale)
+    res.status(200).json({
+      message: "Un email de réinitialisation a été envoyé à votre adresse email."
+    });
+
+    // 📧 ENVOI DE L'EMAIL EN TÂCHE DE FOND (sans bloquer le client)
     const subject = 'Réinitialisation de votre mot de passe - Mentorat GN';
     const htmlContent = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
@@ -311,14 +317,13 @@ exports.forgotPassword = async (req, res) => {
           <div style="text-align: center; margin: 30px 0;">
             <a href="${resetUrl}" style="display: inline-block; padding: 15px 30px; background-color: #7c3aed; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">Réinitialiser mon mot de passe</a>
           </div>
-          <p><strong>Ce lien expirera dans 10 minutes.</strong></p>
+          <p><strong>Ce lien expirera dans une heure.</strong></p>
           <p>Si vous n'avez pas demandé cette réinitialisation, ignorez simplement cet email.</p>
           <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
           <p style="color: #666; font-size: 12px; text-align: center;">Équipe Mentorat GN - Propulsé par Voix d'Avenir</p>
         </div>
     `;
 
-    // Envoi de l'e-mail en arrière-plan
     if (process.env.BREVO_API_KEY) {
         sendEmailViaBrevo(user.email, user.name, subject, htmlContent).catch(err => {
             console.error('❌ Échec envoi via Brevo API:', err.message);
@@ -337,11 +342,6 @@ exports.forgotPassword = async (req, res) => {
             console.error('❌ ERREUR D\'ENVOI EMAIL (Background):', err.message);
         });
     }
-
-    // Réponse immédiate au client
-    res.status(200).json({
-      message: "Un email de réinitialisation a été envoyé à votre adresse email."
-    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Erreur serveur", error: err.message });
