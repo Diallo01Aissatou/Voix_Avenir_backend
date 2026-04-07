@@ -106,6 +106,7 @@ app.use(cors({
   origin: function (origin, callback) {
     const allowedOrigins = [
       'https://diallo01aissatou.github.io',
+      'http://localhost:5173',
       'http://localhost:3000'
     ];
     // Autoriser les requêtes sans origine (comme les apps mobiles ou curl)
@@ -123,15 +124,15 @@ app.use(cors({
 
 // --- SÉCURITÉ : RATE LIMITING (Protection contre force brute) ---
 const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limite chaque IP à 100 requêtes par fenêtre
+  windowMs: 15 * 60 * 1000, 
+  max: 1000, // Limite beaucoup plus large pour le développement
   message: { message: "Trop de requêtes, veuillez réessayer dans 15 minutes." }
 });
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10, // Plus restrictif pour l'auth (10 tentatives / 15 min)
-  message: { message: "Trop de tentatives de connexion, réessayez plus tard pour votre sécurité." }
+  max: 100, // Plus permissif pour les tests
+  message: { message: "Trop de tentatives de connexion, réessayez plus tard." }
 });
 
 // Appliquer les limites
