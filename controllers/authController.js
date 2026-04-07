@@ -290,10 +290,14 @@ exports.forgotPassword = async (req, res) => {
     user.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
     await user.save({ validateBeforeSave: false });
 
-    // URL de réinitialisation (en s'assurant du slash final)
+    // URL de réinitialisation (en s'assurer d'un format robuste pour GitHub Pages)
     const frontendBase = process.env.FRONTEND_URL || "https://diallo01aissatou.github.io/Voix_D-avenir/";
     const normalizedBase = frontendBase.endsWith('/') ? frontendBase : `${frontendBase}/`;
     const resetUrl = `${normalizedBase}?page=reset-password&token=${resetToken}`;
+    
+    console.log(`DEBUG PASSWORD RESET:`);
+    console.log(`- Token brut: ${resetToken}`);
+    console.log(`- URL générée: ${resetUrl}`);
 
     // Configuration Gmail SMTP
     console.log('Tentative d\'envoi email à:', user.email);
@@ -359,7 +363,9 @@ exports.resetPassword = async (req, res) => {
     }
 
     // Hash du token pour comparaison
+    console.log(`Tentative de réinitialisation avec token: ${token}`);
     const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+    console.log(`- Hash calculé: ${hashedToken}`);
 
     // Trouver l'utilisateur avec le token valide et non expiré
     const user = await User.findOne({
@@ -368,8 +374,10 @@ exports.resetPassword = async (req, res) => {
     });
 
     if (!user) {
+      console.log(`❌ Aucun utilisateur trouvé pour ce hash ou token expiré (Now: ${Date.now()})`);
       return res.status(400).json({ message: "Token invalide ou expiré" });
     }
+    console.log(`✅ Utilisateur trouvé: ${user.email}`);
 
     // Hash du nouveau mot de passe
     const hashedPassword = await bcrypt.hash(password, 10);
