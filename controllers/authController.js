@@ -5,10 +5,15 @@ const nodemailer = require('nodemailer');
 const User = require('../models/User');
 
 // Configuration du transporteur d'e-mails (Lazy Singleton)
-// Configuration du transporteur d'e-mails (Lazy Singleton)
 let transporter;
 const getTransporter = () => {
     if (!transporter) {
+        // En production sur Render (détection par BREVO_API_KEY)
+        if (process.env.BREVO_API_KEY) {
+            console.log('Utilisation de l\'API Brevo (HTTP) pour la production');
+            return null; // On n'utilise pas nodemailer pour Brevo API
+        }
+
         // Détection de l'environnement : Priorité Mailtrap sur Render à cause des blocages SMTP Gmail
         if (process.env.MAILTRAP_USER && process.env.MAILTRAP_PASS) {
             console.log('Utilisation du transporteur Mailtrap (Port 2525) pour Render');
@@ -21,22 +26,49 @@ const getTransporter = () => {
                 }
             });
         } else {
-            // Fallback Gmail (utile en local si pas de Mailtrap configuré)
-            const cleanPass = (process.env.EMAIL_PASSS || '').replace(/\s+/g, '');
             console.log('Utilisation du transporteur Gmail (Port 587)');
+            const cleanPass = (process.env.EMAIL_PASSS || '').replace(/\s+/g, '');
             transporter = nodemailer.createTransport({
                 host: 'smtp.gmail.com',
                 port: 587,
                 secure: false,
-                auth: {
-                    user: process.env.EMAIL_USERS,
-                    pass: cleanPass
-                },
+                auth: { user: process.env.EMAIL_USERS, pass: cleanPass },
                 tls: { rejectUnauthorized: false }
             });
         }
     }
     return transporter;
+};
+
+// Fonction d'envoi via Brevo API (HTTP)
+const sendEmailViaBrevo = async (to, name, subject, htmlContent) => {
+    try {
+        const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+            method: 'POST',
+            headers: {
+                'accept': 'application/json',
+                'api-key': process.env.BREVO_API_KEY,
+                'content-type': 'application/json'
+            },
+            body: JSON.stringify({
+                sender: { 
+                    name: process.env.EMAIL_SENDER_NAME || "Mentorat GN", 
+                    email: process.env.EMAIL_SENDER_EMAIL || "voixavenir224@gmail.com" 
+                },
+                to: [{ email: to, name: name }],
+                subject: subject,
+                htmlContent: htmlContent
+            })
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Erreur API Brevo');
+        console.log('✅ Email envoyé via Brevo API:', data.messageId);
+        return data;
+    } catch (err) {
+        console.error('❌ Erreur Brevo API:', err.message);
+        throw err;
+    }
 };
 
 // Blacklist en mémoire pour les tokens invalidés
@@ -265,12 +297,8 @@ exports.forgotPassword = async (req, res) => {
     // Configuration Gmail SMTP
     console.log('Tentative d\'envoi email à:', user.email);
 
-    // Envoi de l'e-mail en arrière-plan sans bloquer la réponse client
-    const mailOptions = {
-      from: `"Mentorat GN" <${process.env.EMAIL_USERS}>`,
-      to: user.email,
-      subject: 'Réinitialisation de votre mot de passe - Mentorat GN',
-      html: `
+    const subject = 'Réinitialisation de votre mot de passe - Mentorat GN';
+    const htmlContent = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
           <h2 style="color: #7c3aed; text-align: center;">Réinitialisation de mot de passe</h2>
           <p>Bonjour <strong>${user.name}</strong>,</p>
@@ -283,15 +311,27 @@ exports.forgotPassword = async (req, res) => {
           <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
           <p style="color: #666; font-size: 12px; text-align: center;">Équipe Mentorat GN - Propulsé par Voix d'Avenir</p>
         </div>
-      `
-    };
+    `;
 
-    getTransporter().sendMail(mailOptions).then(info => {
-      console.log('✅ Email envoyé avec succès à', user.email, ':', info.messageId);
-    }).catch(err => {
-      console.error('❌ ERREUR D\'ENVOI EMAIL (Background):', err.message);
-      console.error('Détails:', err);
-    });
+    // Envoi de l'e-mail en arrière-plan
+    if (process.env.BREVO_API_KEY) {
+        sendEmailViaBrevo(user.email, user.name, subject, htmlContent).catch(err => {
+            console.error('❌ Échec envoi via Brevo API:', err.message);
+        });
+    } else {
+        const mailOptions = {
+            from: `"Mentorat GN" <${process.env.EMAIL_USERS || process.env.EMAIL_SENDER_EMAIL}>`,
+            to: user.email,
+            subject: subject,
+            html: htmlContent
+        };
+
+        getTransporter().sendMail(mailOptions).then(info => {
+            console.log('✅ Email envoyé avec succès à', user.email, ':', info.messageId);
+        }).catch(err => {
+            console.error('❌ ERREUR D\'ENVOI EMAIL (Background):', err.message);
+        });
+    }
 
     // Réponse immédiate au client
     res.status(200).json({
@@ -392,12 +432,16 @@ exports.testSmtp = async (req, res) => {
 
     const cleanPass = (process.env.EMAIL_PASSS || '').replace(/\s+/g, '');
 
+    // Test des transporteurs SMTP
     for (const config of configs) {
         console.log(`Test de connexion: ${config.label}...`);
-        
-        // Déterminer les identifiants
         const user = config.label.includes('Mailtrap') ? process.env.MAILTRAP_USER : process.env.EMAIL_USERS;
         const pass = config.label.includes('Mailtrap') ? process.env.MAILTRAP_PASS : cleanPass;
+
+        if (!user || !pass) {
+            results.push({ label: config.label, status: 'IGNORÉ ℹ️', error: 'Identifiants manquants' });
+            continue;
+        }
 
         const testTransporter = nodemailer.createTransport({
             host: config.host,
@@ -413,6 +457,23 @@ exports.testSmtp = async (req, res) => {
             results.push({ label: config.label, status: 'SUCCÈS ✅' });
         } catch (err) {
             results.push({ label: config.label, status: 'ÉCHEC ❌', error: err.message });
+        }
+    }
+
+    // Test de l'API Brevo (HTTP)
+    if (process.env.BREVO_API_KEY) {
+        console.log('Test de l\'API Brevo...');
+        try {
+            const response = await fetch('https://api.brevo.com/v3/account', {
+                headers: { 'api-key': process.env.BREVO_API_KEY }
+            });
+            if (response.ok) {
+                results.push({ label: 'Brevo API (HTTP)', status: 'SUCCÈS ✅' });
+            } else {
+                results.push({ label: 'Brevo API (HTTP)', status: 'ÉCHEC ❌', error: `Status ${response.status}` });
+            }
+        } catch (err) {
+            results.push({ label: 'Brevo API (HTTP)', status: 'ÉCHEC ❌', error: err.message });
         }
     }
 
