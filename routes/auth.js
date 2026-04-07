@@ -35,7 +35,7 @@ router.post('/logout', authController.logout);
 router.post('/create-admin', authController.createAdmin);
 router.post('/forgot-password', authController.forgotPassword);
 router.get('/test-smtp', authController.testSmtp); // Nouvelle route de diagnostic (GET)
-router.put('/reset-password/:token', authController.resetPassword);
+router.post('/reset-password/:token', authController.resetPassword);
 
 // ==========================================
 // ROUTES SOCIAL LOGIN

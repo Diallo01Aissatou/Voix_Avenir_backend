@@ -290,9 +290,10 @@ exports.forgotPassword = async (req, res) => {
     user.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
     await user.save({ validateBeforeSave: false });
 
-    // URL de réinitialisation
-    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173/Voix_D-avenir";
-    const resetUrl = `${frontendUrl}?page=reset-password&token=${resetToken}`;
+    // URL de réinitialisation (en s'assurant du slash final)
+    const frontendBase = process.env.FRONTEND_URL || "https://diallo01aissatou.github.io/Voix_D-avenir/";
+    const normalizedBase = frontendBase.endsWith('/') ? frontendBase : `${frontendBase}/`;
+    const resetUrl = `${normalizedBase}?page=reset-password&token=${resetToken}`;
 
     // Configuration Gmail SMTP
     console.log('Tentative d\'envoi email à:', user.email);
