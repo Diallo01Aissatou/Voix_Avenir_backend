@@ -8,6 +8,10 @@ const passport = require('./config/passport');
 const socketio = require('socket.io');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const mongoSanitize = require('express-mongo-sanitize');
+const xss = require('xss-clean');
+const hpp = require('hpp');
+const rateLimit = require('express-rate-limit');
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const messagesRoutes = require('./routes/messages');
@@ -29,6 +33,7 @@ const faqRoutes = require('./routes/faq');
 const questionRoutes = require('./routes/questions');
 const mongoose = require("mongoose");
 const app = express();
+app.disable('x-powered-by'); // Sécurité : ne pas révéler qu'on utilise Express
 app.enable('trust proxy');
 const path = require('path');
 const fs = require('fs');
@@ -101,7 +106,6 @@ app.use(cors({
   origin: function (origin, callback) {
     const allowedOrigins = [
       'https://diallo01aissatou.github.io',
-      'http://localhost:5173',
       'http://localhost:3000'
     ];
     // Autoriser les requêtes sans origine (comme les apps mobiles ou curl)
@@ -116,6 +120,30 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
 }));
+
+// --- SÉCURITÉ : RATE LIMITING (Protection contre force brute) ---
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limite chaque IP à 100 requêtes par fenêtre
+  message: { message: "Trop de requêtes, veuillez réessayer dans 15 minutes." }
+});
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10, // Plus restrictif pour l'auth (10 tentatives / 15 min)
+  message: { message: "Trop de tentatives de connexion, réessayez plus tard pour votre sécurité." }
+});
+
+// Appliquer les limites
+app.use('/api/', apiLimiter);
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/forgot-password', authLimiter);
+app.use('/api/auth/register', authLimiter);
+
+// --- SÉCURITÉ : DATA SANITIZATION (Protection contre injections) ---
+app.use(mongoSanitize()); // Protection NoSQL injection
+app.use(xss());           // Protection XSS
+app.use(hpp());           // Protection Parameter Pollution
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
