@@ -216,14 +216,26 @@ exports.register = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ message: 'Email ou mot de passe manquant' });
+    console.log('Tentative de connexion pour:', email);
+    
+    if (!email || !password) {
+      console.log('Echec: Email ou mot de passe manquant');
+      return res.status(400).json({ message: 'Email ou mot de passe manquant' });
+    }
 
     const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ message: "Aucun compte n'est associé à cette adresse e-mail. Veuillez vérifier ou vous inscrire." });
+    if (!user) {
+      console.log('Echec: Utilisateur non trouvé pour', email);
+      return res.status(400).json({ message: "Aucun compte n'est associé à cette adresse e-mail. Veuillez vérifier ou vous inscrire." });
+    }
 
     const match = await bcrypt.compare(password, user.password);
-    if (!match) return res.status(400).json({ message: "Le mot de passe que vous avez saisi est incorrect." });
+    if (!match) {
+      console.log('Echec: Mot de passe incorrect pour', email);
+      return res.status(400).json({ message: "Le mot de passe que vous avez saisi est incorrect." });
+    }
 
+    console.log('Succès: Connexion réussie pour', email);
     sendTokenInCookie(res, user, "Connexion réussie");
 
   } catch (error) {

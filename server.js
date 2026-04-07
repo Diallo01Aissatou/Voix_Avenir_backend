@@ -96,11 +96,11 @@ app.get('/tiktokk6ct27zyPP0BJGTfqzyXX4AKDF2rsRFU.txt', (req, res) => {
 
 // middlewares
 app.use(morgan('dev'));
-app.use(helmet({
+/* app.use(helmet({
   contentSecurityPolicy: false,
   crossOriginResourcePolicy: false,
   crossOriginEmbedderPolicy: false
-}));
+})); */
 app.use(cors({
   origin: function (origin, callback) {
     const allowedOrigins = [
@@ -134,18 +134,18 @@ const authLimiter = rateLimit({
   message: { message: "Trop de tentatives de connexion, réessayez plus tard." }
 });
 
-// Appliquer les limites
+/* // Appliquer les limites
 app.use('/api/', apiLimiter);
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/forgot-password', authLimiter);
-app.use('/api/auth/register', authLimiter);
+app.use('/api/auth/register', authLimiter); */
 
 app.use(express.json({ limit: '50mb' })); // Augmenté pour les photos Base64
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// --- SÉCURITÉ : DATA SANITIZATION (après parsing du body) ---
+/* // --- SÉCURITÉ : DATA SANITIZATION (après parsing du body) ---
 app.use(mongoSanitize()); // Protection NoSQL injection avec req.body rempli
-app.use(hpp());           // Protection Parameter Pollution
+app.use(hpp());           // Protection Parameter Pollution */
 app.use(cookieParser());
 app.use(session({
   secret: process.env.SESSION_SECRET || 'mentora_secret_session',
