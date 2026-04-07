@@ -384,9 +384,7 @@ exports.resetPassword = async (req, res) => {
       }
       return res.status(400).json({ message: "Token invalide ou expiré" });
     }
-      console.log(`❌ Aucun utilisateur trouvé pour ce hash ou token expiré (Now: ${Date.now()})`);
-      return res.status(400).json({ message: "Token invalide ou expiré" });
-    }
+    
     console.log(`✅ Utilisateur trouvé: ${user.email}`);
 
     // Hash du nouveau mot de passe
