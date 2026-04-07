@@ -182,8 +182,11 @@ exports.register = async (req, res) => {
       isApproved: role === 'mentore' ? false : true // Les mentores doivent être validées
     };
 
-    // Enregistrer la photo si fournie (diskStorage)
-    if (req.file) {
+    // Enregistrer la photo si fournie (Base64 ou URL existante)
+    if (req.body.photo) {
+      userPayload.photo = req.body.photo;
+    } else if (req.file) {
+      // Fallback au cas où le frontend enverrait encore un fichier
       userPayload.photo = `/uploads/${req.file.filename}`;
     }
 
