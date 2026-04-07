@@ -84,7 +84,7 @@ exports.getMyProfile = async (req, res) => {
 
     // Ajouter l'URL complète pour la photo
     const userObj = user.toObject();
-    if (userObj.photo && !userObj.photo.startsWith('http')) {
+    if (userObj.photo && !userObj.photo.startsWith('http') && !userObj.photo.startsWith('data:')) {
       const baseUrl = `${req.protocol}://${req.get('host')}`;
       userObj.photo = `${baseUrl}/uploads/${userObj.photo.split('/').pop()}`;
     }
@@ -107,6 +107,7 @@ exports.updateMyProfile = async (req, res) => {
       interests, 
       expertise, 
       bio, 
+      photo,
       availableDays, 
       startTime, 
       endTime 
@@ -122,6 +123,7 @@ exports.updateMyProfile = async (req, res) => {
     if (level !== undefined) updateData.level = level;
     if (profession !== undefined) updateData.profession = profession;
     if (bio !== undefined) updateData.bio = bio;
+    if (photo !== undefined) updateData.photo = photo; // Support pour Base64 permanent
     if (availableDays !== undefined) updateData.availableDays = availableDays;
     if (startTime !== undefined) updateData.startTime = startTime;
     if (endTime !== undefined) updateData.endTime = endTime;
@@ -147,7 +149,7 @@ exports.updateMyProfile = async (req, res) => {
 
     // Ajouter l'URL complète pour la photo
     const userObj = user.toObject();
-    if (userObj.photo && !userObj.photo.startsWith('http')) {
+    if (userObj.photo && !userObj.photo.startsWith('http') && !userObj.photo.startsWith('data:')) {
       const baseUrl = `${req.protocol}://${req.get('host')}`;
       userObj.photo = `${baseUrl}/uploads/${userObj.photo.split('/').pop()}`;
     }
@@ -425,7 +427,7 @@ exports.uploadProfilePhoto = async (req, res) => {
 
     // Ajouter l'URL complète pour la photo
     const userObj = user.toObject();
-    if (userObj.photo && !userObj.photo.startsWith('http')) {
+    if (userObj.photo && !userObj.photo.startsWith('http') && !userObj.photo.startsWith('data:')) {
       const baseUrl = `${req.protocol}://${req.get('host')}`;
       userObj.photo = `${baseUrl}/uploads/${userObj.photo.split('/').pop()}`;
     }
