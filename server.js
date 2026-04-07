@@ -9,7 +9,6 @@ const socketio = require('socket.io');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const mongoSanitize = require('express-mongo-sanitize');
-const xss = require('xss-clean');
 const hpp = require('hpp');
 const rateLimit = require('express-rate-limit');
 const authRoutes = require('./routes/auth');
@@ -141,13 +140,12 @@ app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/forgot-password', authLimiter);
 app.use('/api/auth/register', authLimiter);
 
-// --- SÉCURITÉ : DATA SANITIZATION (Protection contre injections) ---
-app.use(mongoSanitize()); // Protection NoSQL injection
-app.use(xss());           // Protection XSS
-app.use(hpp());           // Protection Parameter Pollution
+app.use(express.json({ limit: '50mb' })); // Augmenté pour les photos Base64
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// --- SÉCURITÉ : DATA SANITIZATION (après parsing du body) ---
+app.use(mongoSanitize()); // Protection NoSQL injection avec req.body rempli
+app.use(hpp());           // Protection Parameter Pollution
 app.use(cookieParser());
 app.use(session({
   secret: process.env.SESSION_SECRET || 'mentora_secret_session',
