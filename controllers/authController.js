@@ -287,7 +287,7 @@ exports.forgotPassword = async (req, res) => {
     // Générer un token simple
     const resetToken = crypto.randomBytes(20).toString('hex');
     user.resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
-    user.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
+    user.resetPasswordExpire = Date.now() + 60 * 60 * 1000; // 1 heure pour éviter les problèmes de synchro temps
     await user.save({ validateBeforeSave: false });
 
     // URL de réinitialisation (en s'assurer d'un format robuste pour GitHub Pages)
@@ -367,13 +367,23 @@ exports.resetPassword = async (req, res) => {
     const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
     console.log(`- Hash calculé: ${hashedToken}`);
 
-    // Trouver l'utilisateur avec le token valide et non expiré
+    // Trouver l'utilisateur (LOG DÉTAILLÉ)
+    const now = Date.now();
     const user = await User.findOne({
       resetPasswordToken: hashedToken,
-      resetPasswordExpire: { $gt: Date.now() }
+      resetPasswordExpire: { $gt: now }
     });
 
     if (!user) {
+      // Diagnostic interne si non trouvé
+      const foundByTokenOnly = await User.findOne({ resetPasswordToken: hashedToken });
+      if (foundByTokenOnly) {
+         console.log(`❌ Token trouvé mais EXPIRÉ (Expire: ${foundByTokenOnly.resetPasswordExpire}, Now: ${now})`);
+      } else {
+         console.log(`❌ AUCUN utilisateur trouvé avec ce hash: ${hashedToken}`);
+      }
+      return res.status(400).json({ message: "Token invalide ou expiré" });
+    }
       console.log(`❌ Aucun utilisateur trouvé pour ce hash ou token expiré (Now: ${Date.now()})`);
       return res.status(400).json({ message: "Token invalide ou expiré" });
     }
