@@ -7,6 +7,7 @@ exports.getAdminStats = async (req, res) => {
     // Compter les utilisateurs par rôle
     const totalUsers = await User.countDocuments();
     const totalMentores = await User.countDocuments({ role: 'mentore' });
+    const approvedMentores = await User.countDocuments({ role: 'mentore', isApproved: true });
     const totalMentorees = await User.countDocuments({ role: 'mentoree' });
     
     // Compter les demandes par statut
@@ -17,6 +18,7 @@ exports.getAdminStats = async (req, res) => {
     const stats = {
       totalUsers,
       totalMentores,
+      approvedMentores,
       totalMentorees,
       totalRequests,
       pendingRequests,
