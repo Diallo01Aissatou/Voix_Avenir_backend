@@ -46,7 +46,7 @@ exports.getTestimonials = async (req, res) => {
     // Formater les URLs des photos
     const testimonialsWithPhotoUrl = mentoreesTestimonials.map(testimonial => {
       const testimonialObj = testimonial.toObject();
-      if (testimonialObj.author?.photo && !testimonialObj.author.photo.startsWith('http')) {
+      if (testimonialObj.author?.photo && !testimonialObj.author.photo.startsWith('http') && !testimonialObj.author.photo.startsWith('data:')) {
         const baseUrl = `${req.protocol}://${req.get('host')}`;
         testimonialObj.author.photo = `${baseUrl}/uploads/${testimonialObj.author.photo.split('/').pop()}`;
       }
