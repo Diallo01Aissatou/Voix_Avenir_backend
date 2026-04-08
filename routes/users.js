@@ -20,8 +20,10 @@ router.post('/profile/photo', protect, upload.single('photo'), userController.up
 // Routes admin
 router.get('/admin/all', protect, authorize("admin"), userController.getAllUsers);
 router.get('/admin/stats', protect, authorize("admin"), userController.getStats);
-router.get('/admin/:id', protect, authorize("admin"), userController.getUserById);
+router.get('/admin/pending', protect, authorize('admin'), userController.getPendingMentors);
 router.put('/admin/approve/:id', protect, authorize('admin'), userController.approveMentor);
+router.put('/admin/reject/:id', protect, authorize('admin'), userController.rejectMentor);
+router.get('/admin/:id', protect, authorize("admin"), userController.getUserById);
 router.put('/admin/:id', protect, authorize("admin"), updateMeValidator, userController.updateUser);
 router.delete('/admin/:id', protect, authorize('admin'), userController.deleteUser);
 

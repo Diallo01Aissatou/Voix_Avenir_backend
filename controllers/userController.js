@@ -419,6 +419,64 @@ exports.approveMentor = async (req, res) => {
   }
 };
 
+// Récupérer les mentores en attente d'approbation (Admin)
+exports.getPendingMentors = async (req, res) => {
+  try {
+    const pendingMentors = await User.find({ role: 'mentore', isApproved: false })
+      .select('-password')
+      .sort({ createdAt: -1 });
+
+    const mentorsWithPhoto = pendingMentors.map(user => {
+      const userObj = user.toObject();
+      if (userObj.photo && !userObj.photo.startsWith('http') && !userObj.photo.startsWith('data:')) {
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        const fileName = userObj.photo.split('/').pop();
+        userObj.photo = `${baseUrl}/uploads/${fileName}`;
+      }
+      return userObj;
+    });
+
+    res.json({ mentors: mentorsWithPhoto, total: mentorsWithPhoto.length });
+  } catch (error) {
+    console.error('Erreur getPendingMentors:', error);
+    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+  }
+};
+
+// Rejeter un mentor (Admin) - désactive le compte
+exports.rejectMentor = async (req, res) => {
+  try {
+    const { reason } = req.body;
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    if (user.role !== 'mentore') return res.status(400).json({ message: 'Cet utilisateur n\'est pas un mentor' });
+
+    user.isApproved = false;
+    user.verified = false; // Désactiver le compte
+    await user.save();
+
+    // Notifier le mentor du rejet
+    try {
+      const Notification = require('../models/Notification');
+      await Notification.create({
+        recipient: user._id,
+        type: 'mentor_rejected',
+        title: 'Votre profil mentor n\'a pas été approuvé',
+        message: reason
+          ? `Raison : ${reason}. Vous pouvez mettre à jour votre profil et soumettre à nouveau.`
+          : 'Votre profil ne correspond pas encore à nos critères. Veuillez mettre à jour votre expertise et votre parcours.'
+      });
+    } catch (notifErr) {
+      console.error('Erreur notification rejet:', notifErr);
+    }
+
+    res.json({ success: true, message: 'Mentor rejeté', user });
+  } catch (error) {
+    console.error('Erreur rejectMentor:', error);
+    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+  }
+};
+
 // Supprimé car doublon corrigé plus haut
 
 // Upload photo de profil
