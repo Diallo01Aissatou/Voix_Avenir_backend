@@ -8,7 +8,17 @@ const Partner = require('../models/Partner');
 router.get('/', async (req, res) => {
   try {
     const partners = await Partner.find({ isActive: true }).sort({ createdAt: -1 });
-    res.json(partners);
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    
+    const partnersWithUrl = partners.map(partner => {
+      const p = partner.toObject();
+      if (p.logo && p.logo.startsWith('/uploads')) {
+        p.logo = `${baseUrl}${p.logo}`;
+      }
+      return p;
+    });
+    
+    res.json(partnersWithUrl);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -28,7 +38,7 @@ router.post('/', protect, upload.single('logo'), async (req, res) => {
 
     let logoPath = '🏢';
     if (req.file) {
-      logoPath = `/uploads/${req.file.filename}`;
+      logoPath = `/uploads/partners/${req.file.filename}`;
     }
 
     const partner = new Partner({
