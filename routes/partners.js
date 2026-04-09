@@ -3,6 +3,7 @@ const router = express.Router();
 const { protect } = require('../middlewares/auth');
 const upload = require('../middlewares/upload');
 const Partner = require('../models/Partner');
+const fs = require('fs');
 
 // GET - Obtenir tous les partenaires actifs (public)
 router.get('/', async (req, res) => {
@@ -38,7 +39,16 @@ router.post('/', protect, upload.single('logo'), async (req, res) => {
 
     let logoPath = '🏢';
     if (req.file) {
-      logoPath = `/uploads/partners/${req.file.filename}`;
+      try {
+        const logoData = fs.readFileSync(req.file.path);
+        const base64Logo = logoData.toString('base64');
+        logoPath = `data:${req.file.mimetype};base64,${base64Logo}`;
+        // Supprimer le fichier physique après conversion pour économiser l'espace sur Render
+        fs.unlinkSync(req.file.path);
+      } catch (err) {
+        console.error('Erreur conversion Base64:', err);
+        logoPath = `/uploads/${req.file.filename}`;
+      }
     }
 
     const partner = new Partner({
