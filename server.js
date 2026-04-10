@@ -26,6 +26,7 @@ const demandeRoutes = require('./routes/demande')
 const mentorshipRoutes = require('./routes/mentorship')
 const sessionRoutes = require('./routes/sessions')
 const aiRoutes = require('./routes/ai');
+const contactRoutes = require('./routes/contact');
 const faqRoutes = require('./routes/faq');
 const questionRoutes = require('./routes/questions');
 const mongoose = require("mongoose");
@@ -190,8 +191,10 @@ app.use('/api/demande', demandeRoutes);
 app.use('/api/mentorship', mentorshipRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/contact', contactRoutes);
 app.use('/api/faq', faqRoutes);
 app.use('/api/questions', questionRoutes);
+
 
 // socket.io pour chat en temps réel et mentorat
 io.on('connection', (socket) => {
