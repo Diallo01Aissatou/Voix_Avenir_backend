@@ -62,9 +62,10 @@ exports.chat = async (req, res) => {
         const systemContext = await getPlatformContext();
 
         const model = genAI.getGenerativeModel({ 
-            model: "gemini-2.5-flash",
+            model: "gemini-2.0-flash", 
             systemInstruction: systemContext
         });
+
 
         // Séparer le dernier message (la question actuelle)
         const userMessage = messages[messages.length - 1].content;
@@ -109,10 +110,17 @@ exports.chat = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Erreur Gemini Chat Details:', error);
+        console.error('Erreur Gemini Chat Error:', error);
+        // Log detailed error for debugging
+        const fs = require('fs');
+        const errorLog = `[${new Date().toISOString()}] Error: ${error.message}\nStack: ${error.stack}\n\n`;
+        fs.appendFileSync('ai-error.txt', errorLog);
+
         res.status(500).json({
             error: 'Erreur lors de la communication avec l\'IA Gemini',
-            details: error.message
+            message: error.message,
+            code: error.status || 500
         });
     }
 };
+
