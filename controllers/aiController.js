@@ -1,11 +1,12 @@
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const Groq = require('groq-sdk');
 const User = require('../models/User');
 const Expert = require('../models/Expert');
 const Partner = require('../models/Partner');
 
-// Initialisation de Gemini avec la clé API
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-// Le modèle sera initialisé dynamiquement avec le contexte système dans exports.chat
+// Initialisation de Groq avec la clé API
+const groq = new Groq({
+    apiKey: process.env.GROQ_API_KEY
+});
 
 /**
  * Récupère le contexte de la plateforme pour l'IA
@@ -32,7 +33,7 @@ const getPlatformContext = async () => {
     1. JOYEUSE & ENCOURAGEANTE : Utilise un ton chaleureux, utilise quelques emojis (pas trop) et encourage toujours l'utilisatrice.
     2. INTERACTIVE : Ne donne pas juste des faits. Pose des questions pour mieux comprendre les besoins (ex: "Quel domaine t'intéresse le plus parmi ceux de nos mentors ?").
     3. EXPERTE LOCALE : Tu connais le contexte guinéen. Parle d'avenir, de leadership féminin et d'autonomisation.
-    4. FORMATAGE : Utilise le Markdown pour rendre tes réponses lisibles (gras, listes à puces, titres subtils).
+    4. FORMATAGE : Utilise le Markdown pour rendre tes réponses livibles (gras, listes à puces, titres subtils).
     
     RÈGLES CRUCIALES :
     - Si on te demande qui tu es, présente-toi comme l'IA de Mentorat-GN.
@@ -49,7 +50,7 @@ const getPlatformContext = async () => {
 };
 
 /**
- * Gère le chat avec l'IA via Gemini
+ * Gère le chat avec l'IA via Groq
  */
 exports.chat = async (req, res) => {
     try {
@@ -61,66 +62,44 @@ exports.chat = async (req, res) => {
 
         const systemContext = await getPlatformContext();
 
-        const model = genAI.getGenerativeModel({ 
-            model: "gemini-2.0-flash", 
-            systemInstruction: systemContext
+        // Conversion des messages au format Groq/OpenAI
+        const groqMessages = [
+            { role: 'system', content: systemContext },
+            ...messages.map(m => ({
+                role: m.role,
+                content: m.content
+            }))
+        ];
+
+        const chatCompletion = await groq.chat.completions.create({
+            messages: groqMessages,
+            model: "llama-3.3-70b-versatile",
+            temperature: 0.7,
+            max_tokens: 1024,
+            top_p: 1,
+            stream: false,
         });
 
-
-        // Séparer le dernier message (la question actuelle)
-        const userMessage = messages[messages.length - 1].content;
-
-        let history = [];
-        const previousMessages = messages.slice(0, -1);
-        
-        previousMessages.forEach(m => {
-            const role = m.role === 'assistant' ? 'model' : 'user';
-            
-            if (history.length === 0) {
-                // Gemini exige que l'historique commence logiquement. Si on a un message 'model' en premier, 
-                // on ajoute d'abord un faux message 'user' pour équilibrer l'alternance.
-                if (role === 'model') {
-                    history.push({ role: 'user', parts: [{ text: "Bonjour" }] });
-                }
-            }
-            
-            const lastRole = history.length > 0 ? history[history.length - 1].role : null;
-            if (role !== lastRole) {
-                history.push({ role, parts: [{ text: m.content }] });
-            }
-        });
-
-        const chat = model.startChat({
-            history: history,
-            generationConfig: {
-                maxOutputTokens: 1024,
-                temperature: 0.7,
-            },
-        });
-
-        const result = await chat.sendMessage(userMessage);
-        const response = await result.response;
-        const textArea = response.text();
+        const responseContent = chatCompletion.choices[0].message.content;
 
         res.json({
             message: {
                 role: 'assistant',
-                content: textArea
+                content: responseContent
             }
         });
 
     } catch (error) {
-        console.error('Erreur Gemini Chat Error:', error);
+        console.error('Erreur Groq Chat Error:', error);
         // Log detailed error for debugging
         const fs = require('fs');
         const errorLog = `[${new Date().toISOString()}] Error: ${error.message}\nStack: ${error.stack}\n\n`;
         fs.appendFileSync('ai-error.txt', errorLog);
 
         res.status(500).json({
-            error: 'Erreur lors de la communication avec l\'IA Gemini',
+            error: 'Erreur lors de la communication avec l\'IA Groq',
             message: error.message,
             code: error.status || 500
         });
     }
 };
-
