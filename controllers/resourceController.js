@@ -178,27 +178,34 @@ exports.downloadFile = async (req, res) => {
     const path = require('path');
 
     try {
-      // Télécharger le fichier depuis l'URL
-      const response = await axios({
-        method: 'GET',
-        url: resource.fileUrl,
-        responseType: 'stream'
+      // Chemin absolu du fichier sur le serveur
+      const filePath = path.join(__dirname, '..', resource.fileUrl);
+      
+      // Nettoyer le nom du fichier pour le téléchargement
+      const extension = getFileExtension(resource.type);
+      const safeTitle = resource.title.replace(/[^a-z0-9\s]/gi, '_').trim();
+      const fileNameRaw = `${safeTitle}.${extension}`;
+
+      // Vérifier si le fichier existe physiquement
+      const fs = require('fs');
+      if (!fs.existsSync(filePath)) {
+        console.error(`Fichier non trouvé sur le disque: ${filePath}`);
+        return res.status(404).json({ message: 'Le fichier physique est introuvable sur le serveur.' });
+      }
+
+      // Envoyer le fichier au navigateur
+      res.download(filePath, fileNameRaw, (err) => {
+        if (err) {
+          console.error('Erreur lors du res.download:', err);
+          if (!res.headersSent) {
+            res.status(500).json({ message: 'Erreur lors du téléchargement du fichier' });
+          }
+        }
       });
-
-      // Définir les en-têtes pour forcer le téléchargement
-      const fileName = `${resource.title.replace(/[^a-z0-9\s]/gi, '_')}.${getFileExtension(resource.type)}`;
-
-      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Length', response.headers['content-length']);
-
-      // Pipe le fichier directement vers la réponse
-      response.data.pipe(res);
 
     } catch (downloadError) {
       console.error('Erreur téléchargement:', downloadError);
-      // Fallback: redirection simple
-      res.redirect(resource.fileUrl);
+      res.status(500).json({ message: 'Erreur technique lors de la préparation du téléchargement' });
     }
 
   } catch (error) {
