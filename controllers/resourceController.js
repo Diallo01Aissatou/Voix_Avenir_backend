@@ -174,7 +174,6 @@ exports.downloadFile = async (req, res) => {
     // Incrémenter le compteur
     await Resource.findByIdAndUpdate(id, { $inc: { downloadCount: 1 } });
 
-    const axios = require('axios');
     const path = require('path');
 
     try {
