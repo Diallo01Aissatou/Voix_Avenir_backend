@@ -20,9 +20,9 @@ passport.deserializeUser(async (id, done) => {
 // Stratégie Google
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
     passport.use(new GoogleStrategy({
-        clientID: process.env.GOOGLE_CLIENT_ID,
-        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-        callbackURL: "/api/auth/google/callback",
+        clientID: process.env.GOOGLE_CLIENT_ID.trim(),
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET.trim(),
+        callbackURL: "https://voix-avenir-backend.onrender.com/api/auth/google/callback",
         proxy: true,
         passReqToCallback: true
       },
