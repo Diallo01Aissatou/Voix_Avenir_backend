@@ -65,8 +65,12 @@ router.put('/download/:id', resourceController.incrementDownload);
 // Route publique pour incrémenter les vues
 router.put('/view/:id', resourceController.incrementViews);
 
-// Route pour télécharger un fichier
+// Route pour télécharger un fichier (ancien systeme)
 router.get('/download-file/:id', resourceController.downloadFile);
+
+// Route pour servir un fichier depuis GridFS (nouveau systeme)
+// Le :filename? optionnel à la fin aide certains navigateurs à reconnaître le type de fichier
+router.get('/serve-file/:id/:filename?', resourceController.serveFile);
 
 // Route admin pour modifier une ressource
 router.put('/:id', protect, authorize('admin'), upload.fields([{ name: 'image', maxCount: 1 }, { name: 'resourceFile', maxCount: 1 }]), resourceController.updateResource);

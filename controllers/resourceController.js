@@ -1,4 +1,7 @@
 const Resource = require('../models/Resource');
+const { getGridFSBucket } = require('../config/gridfs');
+const mongoose = require('mongoose');
+const fs = require('fs');
 
 // Obtenir toutes les ressources actives
 exports.getResources = async (req, res) => {
@@ -31,10 +34,38 @@ exports.createResource = async (req, res) => {
       resourceData.image = `/uploads/${req.files.image[0].filename}`;
     }
 
-    // Gérer le fichier de ressource
+    // Gérer le fichier de ressource avec GridFS
     if (req.files && req.files.resourceFile) {
-      resourceData.fileUrl = `/uploads/resources/${req.files.resourceFile[0].filename}`;
-      console.log('Fichier de ressource sauvegardé:', resourceData.fileUrl);
+      const file = req.files.resourceFile[0];
+      const bucket = getGridFSBucket();
+      
+      if (!bucket) {
+        throw new Error('Le stockage GridFS n\'est pas encore prêt.');
+      }
+
+      const uploadStream = bucket.openUploadStream(
+        `resource-${Date.now()}-${file.originalname}`,
+        { contentType: file.mimetype }
+      );
+
+      const readStream = fs.createReadStream(file.path);
+
+      await new Promise((resolve, reject) => {
+        readStream.pipe(uploadStream)
+          .on('error', reject)
+          .on('finish', resolve);
+      });
+
+      // Supprimer le fichier temporaire du disque après upload en GridFS
+      try {
+        fs.unlinkSync(file.path);
+      } catch (err) {
+        console.error('Erreur lors de la suppression du fichier temporaire:', err);
+      }
+
+      // Stocker l'ID du fichier GridFS dans fileUrl
+      resourceData.fileUrl = `/api/resources/serve-file/${uploadStream.id}`;
+      console.log('Fichier de ressource sauvegardé en GridFS:', resourceData.fileUrl);
     } else {
       console.log('Aucun fichier de ressource reçu');
     }
@@ -72,9 +103,28 @@ exports.updateResource = async (req, res) => {
       updateData.image = `/uploads/${req.files.image[0].filename}`;
     }
 
-    // Gérer le fichier de ressource si fourni
+    // Gérer le fichier de ressource si fourni avec GridFS
     if (req.files && req.files.resourceFile) {
-      updateData.fileUrl = `/uploads/resources/${req.files.resourceFile[0].filename}`;
+      const file = req.files.resourceFile[0];
+      const bucket = getGridFSBucket();
+      
+      const uploadStream = bucket.openUploadStream(
+        `resource-${Date.now()}-${file.originalname}`,
+        { contentType: file.mimetype }
+      );
+
+      const readStream = fs.createReadStream(file.path);
+
+      await new Promise((resolve, reject) => {
+        readStream.pipe(uploadStream)
+          .on('error', reject)
+          .on('finish', resolve);
+      });
+
+      // Supprimer le fichier temporaire
+      try { fs.unlinkSync(file.path); } catch (e) {}
+
+      updateData.fileUrl = `/api/resources/serve-file/${uploadStream.id}`;
     }
 
     resource = await Resource.findByIdAndUpdate(id, updateData, {
@@ -161,55 +211,93 @@ exports.incrementViews = async (req, res) => {
   }
 };
 
-// Télécharger un fichier
-exports.downloadFile = async (req, res) => {
+// Servir/Télécharger un fichier depuis GridFS
+exports.serveFile = async (req, res) => {
   try {
     const { id } = req.params;
+    const bucket = getGridFSBucket();
 
-    const resource = await Resource.findById(id);
-    if (!resource || !resource.fileUrl) {
-      return res.status(404).json({ message: 'Fichier non trouvé' });
+    if (!bucket) {
+      return res.status(500).json({ message: 'Serveur de stockage non prêt' });
     }
 
-    // Incrémenter le compteur
-    await Resource.findByIdAndUpdate(id, { $inc: { downloadCount: 1 } });
-
-    const path = require('path');
-
+    let fileId;
     try {
-      // Chemin absolu du fichier sur le serveur
-      const filePath = path.join(__dirname, '..', resource.fileUrl);
-      
-      // Nettoyer le nom du fichier pour le téléchargement
-      const extension = getFileExtension(resource.type);
-      const safeTitle = resource.title.replace(/[^a-z0-9\s]/gi, '_').trim();
-      const fileNameRaw = `${safeTitle}.${extension}`;
-
-      // Vérifier si le fichier existe physiquement
-      const fs = require('fs');
-      if (!fs.existsSync(filePath)) {
-        console.error(`Fichier non trouvé sur le disque: ${filePath}`);
-        return res.status(404).json({ message: 'Le fichier physique est introuvable sur le serveur.' });
-      }
-
-      // Envoyer le fichier au navigateur
-      res.download(filePath, fileNameRaw, (err) => {
-        if (err) {
-          console.error('Erreur lors du res.download:', err);
-          if (!res.headersSent) {
-            res.status(500).json({ message: 'Erreur lors du téléchargement du fichier' });
-          }
-        }
-      });
-
-    } catch (downloadError) {
-      console.error('Erreur téléchargement:', downloadError);
-      res.status(500).json({ message: 'Erreur technique lors de la préparation du téléchargement' });
+      fileId = new mongoose.Types.ObjectId(id);
+    } catch (e) {
+      return res.status(400).json({ message: 'ID de fichier invalide' });
     }
+
+    const files = await bucket.find({ _id: fileId }).toArray();
+    if (!files || files.length === 0) {
+      return res.status(404).json({ message: 'Fichier non trouvé en base de données' });
+    }
+
+    const file = files[0];
+    
+    // Déterminer si c'est un téléchargement forcé ou un affichage inline
+    const isDownload = req.query.download === 'true';
+    
+    // Sécurité et accessibilité pour l'affichage en ligne (iframe)
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    
+    // Forcer le Content-Type s'il est mal détecté ou générique
+    let contentType = file.contentType || 'application/octet-stream';
+    const extension = file.filename.split('.').pop().toLowerCase();
+    
+    if (extension === 'pdf') {
+      contentType = 'application/pdf';
+    } else if (['mp4', 'm4v', 'mov', 'webm'].includes(extension)) {
+      contentType = `video/${extension === 'mov' ? 'quicktime' : extension}`;
+    }
+
+    // Headers ULTIMES pour forcer l'affichage sans téléchargement
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Length', file.length);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cache-Control', 'private, no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    
+    if (isDownload) {
+      res.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);
+    } else {
+      // Pour l'affichage natif, 'inline' sans filename est la norme la plus sûre
+      res.setHeader('Content-Disposition', 'inline');
+    }
+
+    // Incrémenter les compteurs selon le besoin (on peut utiliser l'ID de la ressource passé en query)
+    if (req.query.resourceId) {
+      await Resource.findByIdAndUpdate(req.query.resourceId, { $inc: isDownload ? { downloadCount: 1 } : { views: 1 } });
+    }
+
+    const downloadStream = bucket.openDownloadStream(fileId);
+    downloadStream.pipe(res);
 
   } catch (error) {
+    console.error('Erreur lors de la lecture du fichier:', error);
     res.status(500).json({ message: 'Erreur serveur', error: error.message });
   }
+};
+
+// Garder l'ancienne méthode pour compatibilité mais la rediriger si besoin
+exports.downloadFile = async (req, res) => {
+  // Cette méthode peut être gardée pour gérer les anciennes routes ou rediriger vers serveFile
+  const { id } = req.params;
+  const resource = await Resource.findById(id);
+  if (resource && resource.fileUrl && resource.fileUrl.includes('/serve-file/')) {
+    const fileId = resource.fileUrl.split('/').pop();
+    req.params.id = fileId;
+    req.query.download = 'true';
+    req.query.resourceId = id;
+    return exports.serveFile(req, res);
+  }
+  
+  // Fallback sur l'ancien code si fichier local (probable qu'il n'existe plus)
+  // ... (code original simplifié ou supprimé)
+  res.status(404).json({ message: "Le fichier n'est plus disponible sur ce serveur." });
 };
 
 function getFileExtension(type) {

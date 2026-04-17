@@ -35,6 +35,9 @@ app.disable('x-powered-by'); // Sécurité : ne pas révéler qu'on utilise Expr
 app.enable('trust proxy');
 const path = require('path');
 const fs = require('fs');
+const { initGridFS } = require('./config/gridfs');
+
+// Initialisation GridFS
 const server = http.createServer(app);
 
 // Créer les dossiers uploads s'ils n'existent pas
@@ -63,6 +66,9 @@ mongoose.connect(mongoURI, {
   .then(() => {
     console.log("MongoDB connecté avec succès ✅");
     console.log("Base de données:", mongoose.connection.name);
+    
+    // Initialiser GridFSBucket via utilitaire
+    initGridFS(mongoose.connection.db);
   })
   .catch(err => {
     console.error("ERREUR DE CONNEXION MONGODB ❌");
@@ -304,3 +310,5 @@ server.listen(PORT, () => {
   console.log(`Le serveur est lancer avec succès ${PORT}`);
   console.log(`Serveur démarré sur le port ${PORT}`);
 });
+
+module.exports = { app, server };
