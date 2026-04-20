@@ -29,9 +29,33 @@ exports.createResource = async (req, res) => {
       });
     }
 
-    // Gérer l'image
+    // Gérer l'image avec GridFS (Stockage permanent)
     if (req.files && req.files.image) {
-      resourceData.image = `/uploads/${req.files.image[0].filename}`;
+      const imageFile = req.files.image[0];
+      const bucket = getGridFSBucket();
+      
+      if (bucket) {
+        const uploadStream = bucket.openUploadStream(
+          `image-${Date.now()}-${imageFile.originalname}`,
+          { contentType: imageFile.mimetype }
+        );
+
+        await new Promise((resolve, reject) => {
+          fs.createReadStream(imageFile.path)
+            .pipe(uploadStream)
+            .on('error', reject)
+            .on('finish', resolve);
+        });
+
+        // Supprimer le fichier temporaire
+        try { fs.unlinkSync(imageFile.path); } catch (e) {}
+
+        resourceData.image = `/api/resources/serve-file/${uploadStream.id}`;
+        console.log('Image sauvegardée en GridFS:', resourceData.image);
+      } else {
+        // Fallback si GridFS n'est pas prêt (pas idéal mais évite le crash)
+        resourceData.image = `/uploads/${imageFile.filename}`;
+      }
     }
 
     // Gérer le fichier de ressource avec GridFS
@@ -48,20 +72,15 @@ exports.createResource = async (req, res) => {
         { contentType: file.mimetype }
       );
 
-      const readStream = fs.createReadStream(file.path);
-
       await new Promise((resolve, reject) => {
-        readStream.pipe(uploadStream)
+        fs.createReadStream(file.path)
+          .pipe(uploadStream)
           .on('error', reject)
           .on('finish', resolve);
       });
 
       // Supprimer le fichier temporaire du disque après upload en GridFS
-      try {
-        fs.unlinkSync(file.path);
-      } catch (err) {
-        console.error('Erreur lors de la suppression du fichier temporaire:', err);
-      }
+      try { fs.unlinkSync(file.path); } catch (err) {}
 
       // Stocker l'ID du fichier GridFS dans fileUrl
       resourceData.fileUrl = `/api/resources/serve-file/${uploadStream.id}`;
@@ -97,33 +116,43 @@ exports.updateResource = async (req, res) => {
     }
 
     const updateData = req.body;
+    const bucket = getGridFSBucket();
 
     // Gérer l'image si fournie
     if (req.files && req.files.image) {
-      updateData.image = `/uploads/${req.files.image[0].filename}`;
+      const imageFile = req.files.image[0];
+      const uploadStream = bucket.openUploadStream(
+        `image-${Date.now()}-${imageFile.originalname}`,
+        { contentType: imageFile.mimetype }
+      );
+
+      await new Promise((resolve, reject) => {
+        fs.createReadStream(imageFile.path)
+          .pipe(uploadStream)
+          .on('error', reject)
+          .on('finish', resolve);
+      });
+
+      try { fs.unlinkSync(imageFile.path); } catch (e) {}
+      updateData.image = `/api/resources/serve-file/${uploadStream.id}`;
     }
 
     // Gérer le fichier de ressource si fourni avec GridFS
     if (req.files && req.files.resourceFile) {
       const file = req.files.resourceFile[0];
-      const bucket = getGridFSBucket();
-      
       const uploadStream = bucket.openUploadStream(
         `resource-${Date.now()}-${file.originalname}`,
         { contentType: file.mimetype }
       );
 
-      const readStream = fs.createReadStream(file.path);
-
       await new Promise((resolve, reject) => {
-        readStream.pipe(uploadStream)
+        fs.createReadStream(file.path)
+          .pipe(uploadStream)
           .on('error', reject)
           .on('finish', resolve);
       });
 
-      // Supprimer le fichier temporaire
       try { fs.unlinkSync(file.path); } catch (e) {}
-
       updateData.fileUrl = `/api/resources/serve-file/${uploadStream.id}`;
     }
 
@@ -143,6 +172,29 @@ exports.updateResource = async (req, res) => {
 exports.deleteResource = async (req, res) => {
   try {
     const { id } = req.params;
+    const resource = await Resource.findById(id);
+    
+    if (resource) {
+      const bucket = getGridFSBucket();
+      // Optionnel : Supprimer les fichiers correspondants dans GridFS pour libérer de l'espace
+      try {
+        if (resource.fileUrl && resource.fileUrl.includes('/serve-file/')) {
+          const fileId = resource.fileUrl.split('/').pop();
+          if (mongoose.Types.ObjectId.isValid(fileId)) {
+            await bucket.delete(new mongoose.Types.ObjectId(fileId));
+          }
+        }
+        if (resource.image && resource.image.includes('/serve-file/')) {
+          const imageId = resource.image.split('/').pop();
+          if (mongoose.Types.ObjectId.isValid(imageId)) {
+            await bucket.delete(new mongoose.Types.ObjectId(imageId));
+          }
+        }
+      } catch (e) {
+        console.warn('Erreur lors de la suppression des fichiers GridFS:', e.message);
+      }
+    }
+
     await Resource.findByIdAndDelete(id);
     res.json({ message: 'Ressource supprimée avec succès' });
   } catch (error) {
@@ -238,43 +290,50 @@ exports.serveFile = async (req, res) => {
     // Déterminer si c'est un téléchargement forcé ou un affichage inline
     const isDownload = req.query.download === 'true';
     
-    // Sécurité et accessibilité pour l'affichage en ligne (iframe)
-    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    
     // Forcer le Content-Type s'il est mal détecté ou générique
     let contentType = file.contentType || 'application/octet-stream';
     const extension = file.filename.split('.').pop().toLowerCase();
     
-    if (extension === 'pdf') {
-      contentType = 'application/pdf';
-    } else if (['mp4', 'm4v', 'mov', 'webm'].includes(extension)) {
-      contentType = `video/${extension === 'mov' ? 'quicktime' : extension}`;
+    // Mappage robuste des types MIME
+    const mimeTypes = {
+      'pdf': 'application/pdf',
+      'mp4': 'video/mp4',
+      'webm': 'video/webm',
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg',
+      'png': 'image/png',
+      'gif': 'image/gif',
+      'svg': 'image/svg+xml'
+    };
+
+    if (mimeTypes[extension]) {
+      contentType = mimeTypes[extension];
     }
 
-    // Headers ULTIMES pour forcer l'affichage sans téléchargement
+    // Headers pour l'affichage/téléchargement
     res.setHeader('Content-Type', contentType);
     res.setHeader('Content-Length', file.length);
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Cache-Control', 'private, no-cache, no-store, must-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
+    res.setHeader('Cache-Control', 'public, max-age=31536000'); // Cache longue durée pour les fichiers immutables
     
     if (isDownload) {
       res.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);
     } else {
-      // Pour l'affichage natif, 'inline' sans filename est la norme la plus sûre
       res.setHeader('Content-Disposition', 'inline');
     }
 
-    // Incrémenter les compteurs selon le besoin (on peut utiliser l'ID de la ressource passé en query)
+    // Optionnel : Incrémenter les compteurs si resourceId est fourni
     if (req.query.resourceId) {
-      await Resource.findByIdAndUpdate(req.query.resourceId, { $inc: isDownload ? { downloadCount: 1 } : { views: 1 } });
+      Resource.findByIdAndUpdate(req.query.resourceId, { 
+        $inc: isDownload ? { downloadCount: 1 } : { views: 1 } 
+      }).catch(err => console.error('Erreur incrément compteur:', err));
     }
 
     const downloadStream = bucket.openDownloadStream(fileId);
     downloadStream.pipe(res);
+
 
   } catch (error) {
     console.error('Erreur lors de la lecture du fichier:', error);
