@@ -19,10 +19,11 @@ passport.deserializeUser(async (id, done) => {
 
 // Stratégie Google
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+    const backendUrl = process.env.BACKEND_URL || "https://voix-avenir-backend.onrender.com";
     passport.use(new GoogleStrategy({
         clientID: process.env.GOOGLE_CLIENT_ID.trim(),
         clientSecret: process.env.GOOGLE_CLIENT_SECRET.trim(),
-        callbackURL: "https://voix-avenir-backend.onrender.com/api/auth/google/callback",
+        callbackURL: `${backendUrl}/api/auth/google/callback`,
         proxy: true,
         passReqToCallback: true
       },
@@ -78,10 +79,11 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
 
 // Stratégie TikTok
 if (process.env.TIKTOK_CLIENT_KEY && process.env.TIKTOK_CLIENT_SECRET) {
+  const backendUrl = process.env.BACKEND_URL || "https://voix-avenir-backend.onrender.com";
   const tiktokStrategy = new TikTokStrategy({
       clientID: process.env.TIKTOK_CLIENT_KEY.trim(),
       clientSecret: process.env.TIKTOK_CLIENT_SECRET.trim(),
-      callbackURL: "https://voix-avenir-backend.onrender.com/api/auth/tiktok/callback",
+      callbackURL: `${backendUrl}/api/auth/tiktok/callback`,
       scope: ['user.info.basic'],
       scopeSeparator: ' ',
       proxy: true,
@@ -172,10 +174,11 @@ if (process.env.TIKTOK_CLIENT_KEY && process.env.TIKTOK_CLIENT_SECRET) {
 
 // Stratégie LinkedIn
 if (process.env.LINKEDIN_KEY && process.env.LINKEDIN_SECRET) {
+  const backendUrl = process.env.BACKEND_URL || "https://voix-avenir-backend.onrender.com";
   const linkedinStrategy = new LinkedInStrategy({
       clientID: process.env.LINKEDIN_KEY,
       clientSecret: process.env.LINKEDIN_SECRET,
-      callbackURL: "https://voix-avenir-backend.onrender.com/api/auth/linkedin/callback",
+      callbackURL: `${backendUrl}/api/auth/linkedin/callback`,
       scope: ['openid', 'profile', 'email'],
       proxy: true,
       passReqToCallback: true

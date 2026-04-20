@@ -59,10 +59,14 @@ const handleSocialCallback = (req, res) => {
   });
 
   // Redirection vers le frontend avec le token
-  const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173/Voix_D-avenir";
+  // On s'assure d'utiliser la version de production si on n'est pas explicitement en local
+  let frontendUrl = process.env.FRONTEND_URL || "https://diallo01aissatou.github.io/Voix_D-avenir/";
+  
+  // Normaliser l'URL (enlever le slash final pour ajouter proprement le paramètre)
+  const base = frontendUrl.endsWith('/') ? frontendUrl.slice(0, -1) : frontendUrl;
     
   // On passe le token dans l'URL pour que le frontend puisse le stocker dans localStorage
-  res.redirect(`${frontendUrl}?token=${token}`);
+  res.redirect(`${base}?token=${token}`);
 };
 
 // Google
