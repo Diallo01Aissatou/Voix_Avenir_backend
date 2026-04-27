@@ -4,6 +4,7 @@ const multer = require('multer');
 const path = require('path');
 const News = require('../models/News');
 const { protect, authorize } = require('../middlewares/auth');
+const { uploadToGridFS, deleteFromGridFS } = require('../utils/gridfsUtils');
 
 // Configuration multer pour les images
 const storage = multer.diskStorage({
@@ -49,7 +50,7 @@ router.post('/', protect, authorize('admin'), upload.single('image'), async (req
     };
     
     if (req.file) {
-      newsData.image = '/uploads/news/' + req.file.filename;
+      newsData.image = await uploadToGridFS(req.file.path, `news-${Date.now()}-${req.file.originalname}`, req.file.mimetype);
     }
     
     const news = await News.create(newsData);
@@ -62,6 +63,10 @@ router.post('/', protect, authorize('admin'), upload.single('image'), async (req
 // Supprimer une actualité (admin seulement)
 router.delete('/:id', protect, authorize('admin'), async (req, res) => {
   try {
+    const news = await News.findById(req.params.id);
+    if (news && news.image && news.image.startsWith('/api/files/')) {
+      await deleteFromGridFS(news.image);
+    }
     await News.findByIdAndDelete(req.params.id);
     res.json({ message: 'Actualité supprimée avec succès' });
   } catch (error) {

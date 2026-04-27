@@ -10,7 +10,7 @@ exports.getExperts = async (req, res) => {
     const baseUrl = `${req.protocol}://${req.get('host')}`;
     const expertsWithUrl = experts.map(expert => {
       const e = expert.toObject();
-      if (e.user?.photo && !e.user.photo.startsWith('http') && !e.user.photo.startsWith('data:')) {
+      if (e.user?.photo && !e.user.photo.startsWith('http') && !e.user.photo.startsWith('data:') && !e.user.photo.startsWith('/api/')) {
         e.user.photo = `${baseUrl}/uploads/${e.user.photo.split('/').pop()}`;
       }
       return e;
@@ -56,7 +56,7 @@ exports.getAllExperts = async (req, res) => {
     const baseUrl = `${req.protocol}://${req.get('host')}`;
     const expertsWithUrl = experts.map(expert => {
       const e = expert.toObject();
-      if (e.user?.photo && !e.user.photo.startsWith('http') && !e.user.photo.startsWith('data:')) {
+      if (e.user?.photo && !e.user.photo.startsWith('http') && !e.user.photo.startsWith('data:') && !e.user.photo.startsWith('/api/')) {
         e.user.photo = `${baseUrl}/uploads/${e.user.photo.split('/').pop()}`;
       }
       return e;

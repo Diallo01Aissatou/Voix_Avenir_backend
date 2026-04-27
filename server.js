@@ -13,7 +13,7 @@ const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const messagesRoutes = require('./routes/messages');
 const appointmentRoutes = require('./routes/apointement');
-const ressourceRoutes = require('./routes/ressource');
+// const ressourceRoutes = require('./routes/ressource'); // Désactivé car doublon instable
 const partnerRoutes = require('./routes/partners');
 const testimonialRoutes = require('./routes/testimonials');
 const adminRoutes = require('./routes/admin');
@@ -21,6 +21,7 @@ const expertRoutes = require('./routes/experts');
 const resourceRoutes = require('./routes/resources');
 const newsRoutes = require('./routes/news');
 const eventRoutes = require('./routes/events');
+const resourceController = require('./controllers/resourceController');
 const oportain = require('./routes/OportainRoute')
 const demandeRoutes = require('./routes/demande')
 const mentorshipRoutes = require('./routes/mentorship')
@@ -183,7 +184,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/messages', messagesRoutes);
 app.use('/api/appointments', appointmentRoutes);
-app.use('/api/ressources', ressourceRoutes);
+app.use('/api/ressources', resourceRoutes); // Redirection vers les routes sécurisées
 app.use('/api/partners', partnerRoutes);
 app.use('/api/testimonials', testimonialRoutes);
 app.use('/api/admin', adminRoutes);
@@ -198,6 +199,15 @@ app.use('/api/mentorship', mentorshipRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/contact', contactRoutes);
+
+// Route universelle pour servir les fichiers depuis GridFS
+app.get('/api/files/:id', resourceController.serveFile);
+app.get('/uploads/*', (req, res) => {
+  res.status(404).json({ 
+    message: "Ce fichier local n'est plus disponible car le serveur a redémarré.",
+    action: "Veuillez ré-uploader ce fichier via le panneau d'administration pour qu'il soit stocké de façon permanente."
+  });
+});
 app.use('/api/faq', faqRoutes);
 app.use('/api/questions', questionRoutes);
 

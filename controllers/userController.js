@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const path = require('path');
+const { uploadToGridFS, deleteFromGridFS } = require('../utils/gridfsUtils');
 
 // Obtenir toutes les mentores (public)
 exports.getMentores = async (req, res) => {
@@ -35,7 +36,7 @@ exports.getMentores = async (req, res) => {
     // Ajouter l'URL complète pour les photos
     const usersWithPhotoUrl = users.map(user => {
       const userObj = user.toObject();
-      if (userObj.photo && !userObj.photo.startsWith('http') && !userObj.photo.startsWith('data:')) {
+      if (userObj.photo && !userObj.photo.startsWith('http') && !userObj.photo.startsWith('data:') && !userObj.photo.startsWith('/api/')) {
         const baseUrl = `${req.protocol}://${req.get('host')}`;
         const fileName = userObj.photo.split('/').pop();
         userObj.photo = `${baseUrl}/uploads/${fileName}`;
@@ -87,11 +88,11 @@ exports.getMyProfile = async (req, res) => {
     const user = await User.findById(req.user.id).select('-password');
     if (!user) return res.status(404).json({ message: 'Utilisateur non trouvé' });
 
-    // Ajouter l'URL complète pour la photo
+    // URL complète si besoin (GridFS ou externe)
     const userObj = user.toObject();
-    if (userObj.photo && !userObj.photo.startsWith('http') && !userObj.photo.startsWith('data:')) {
-      const baseUrl = `${req.protocol}://${req.get('host')}`;
-      userObj.photo = `${baseUrl}/uploads/${userObj.photo.split('/').pop()}`;
+    if (userObj.photo && !userObj.photo.startsWith('http') && !userObj.photo.startsWith('data:') && !userObj.photo.startsWith('/api/')) {
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        userObj.photo = `${baseUrl}/uploads/${userObj.photo.split('/').pop()}`;
     }
 
     res.json(userObj);
@@ -152,11 +153,11 @@ exports.updateMyProfile = async (req, res) => {
 
     if (!user) return res.status(404).json({ message: 'Utilisateur non trouvé' });
 
-    // Ajouter l'URL complète pour la photo
+    // URL complète si besoin (GridFS ou externe)
     const userObj = user.toObject();
-    if (userObj.photo && !userObj.photo.startsWith('http') && !userObj.photo.startsWith('data:')) {
-      const baseUrl = `${req.protocol}://${req.get('host')}`;
-      userObj.photo = `${baseUrl}/uploads/${userObj.photo.split('/').pop()}`;
+    if (userObj.photo && !userObj.photo.startsWith('http') && !userObj.photo.startsWith('data:') && !userObj.photo.startsWith('/api/')) {
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        userObj.photo = `${baseUrl}/uploads/${userObj.photo.split('/').pop()}`;
     }
 
     res.json({ success: true, message: 'Profil mis à jour', user: userObj });
@@ -184,7 +185,7 @@ exports.getAllUsers = async (req, res) => {
 
     const usersWithPhotoUrl = users.map(user => {
       const userObj = user.toObject();
-      if (userObj.photo && !userObj.photo.startsWith('http') && !userObj.photo.startsWith('data:')) {
+      if (userObj.photo && !userObj.photo.startsWith('http') && !userObj.photo.startsWith('data:') && !userObj.photo.startsWith('/api/')) {
         const baseUrl = `${req.protocol}://${req.get('host')}`;
         const fileName = userObj.photo.split('/').pop();
         userObj.photo = `${baseUrl}/uploads/${fileName}`;
@@ -327,7 +328,7 @@ exports.searchMentors = async (req, res) => {
     // Ajouter l'URL complète pour les photos
     const usersWithPhotoUrl = users.map(user => {
       const userObj = user.toObject();
-      if (userObj.photo && !userObj.photo.startsWith('http') && !userObj.photo.startsWith('data:')) {
+      if (userObj.photo && !userObj.photo.startsWith('http') && !userObj.photo.startsWith('data:') && !userObj.photo.startsWith('/api/')) {
         const baseUrl = `${req.protocol}://${req.get('host')}`;
         const fileName = userObj.photo.split('/').pop();
         userObj.photo = `${baseUrl}/uploads/${fileName}`;
@@ -428,7 +429,7 @@ exports.getPendingMentors = async (req, res) => {
 
     const mentorsWithPhoto = pendingMentors.map(user => {
       const userObj = user.toObject();
-      if (userObj.photo && !userObj.photo.startsWith('http') && !userObj.photo.startsWith('data:')) {
+      if (userObj.photo && !userObj.photo.startsWith('http') && !userObj.photo.startsWith('data:') && !userObj.photo.startsWith('/api/')) {
         const baseUrl = `${req.protocol}://${req.get('host')}`;
         const fileName = userObj.photo.split('/').pop();
         userObj.photo = `${baseUrl}/uploads/${fileName}`;
@@ -486,25 +487,20 @@ exports.uploadProfilePhoto = async (req, res) => {
       return res.status(400).json({ message: 'Aucun fichier uploadé' });
     }
 
-    const photoPath = `/uploads/${req.file.filename}`;
-    const user = await User.findByIdAndUpdate(
-      req.user.id,
-      { photo: photoPath },
-      { new: true }
-    ).select('-password');
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'Utilisateur non trouvé' });
 
-    if (!user) {
-      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    // Supprimer l'ancienne photo si elle était dans GridFS
+    if (user.photo && user.photo.startsWith('/api/files/')) {
+      await deleteFromGridFS(user.photo);
     }
 
-    // Ajouter l'URL complète pour la photo
-    const userObj = user.toObject();
-    if (userObj.photo && !userObj.photo.startsWith('http') && !userObj.photo.startsWith('data:')) {
-      const baseUrl = `${req.protocol}://${req.get('host')}`;
-      userObj.photo = `${baseUrl}/uploads/${userObj.photo.split('/').pop()}`;
-    }
+    const photoPath = await uploadToGridFS(req.file.path, `photo-${Date.now()}-${req.file.originalname}`, req.file.mimetype);
+    
+    user.photo = photoPath;
+    await user.save();
 
-    res.json({ message: 'Photo de profil mise à jour', user: userObj });
+    res.json({ message: 'Photo de profil mise à jour', user });
   } catch (error) {
     console.error('Erreur upload photo:', error);
     res.status(500).json({ message: 'Erreur serveur', error: error.message });

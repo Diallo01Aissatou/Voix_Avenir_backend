@@ -1,4 +1,5 @@
 const Partner = require('../models/Partner');
+const { uploadToGridFS, deleteFromGridFS } = require('../utils/gridfsUtils');
 
 // Obtenir tous les partenaires actifs (public)
 exports.getPartners = async (req, res) => {
@@ -36,7 +37,7 @@ exports.createPartner = async (req, res) => {
 
     // Si un fichier logo a été uploadé
     if (req.file) {
-      logoPath = `/uploads/partners/${req.file.filename}`;
+      logoPath = await uploadToGridFS(req.file.path, `partner-${Date.now()}-${req.file.originalname}`, req.file.mimetype);
     }
 
     const partner = new Partner({
@@ -62,11 +63,17 @@ exports.deletePartner = async (req, res) => {
       return res.status(403).json({ message: 'Seuls les administrateurs peuvent supprimer des partenaires' });
     }
 
-    const partner = await Partner.findByIdAndDelete(req.params.id);
+    const partner = await Partner.findById(req.params.id);
     if (!partner) {
       return res.status(404).json({ message: 'Partenaire non trouvé' });
     }
 
+    // Supprimer le logo de GridFS si ce n'est pas l'émoji par défaut
+    if (partner.logo && partner.logo.startsWith('/api/files/')) {
+      await deleteFromGridFS(partner.logo);
+    }
+
+    await Partner.findByIdAndDelete(req.params.id);
     res.json({ message: 'Partenaire supprimé avec succès' });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -84,20 +91,22 @@ exports.updatePartner = async (req, res) => {
     const { name, website, description, isActive } = req.body;
     const updateData = { name, website, description, isActive };
 
-    // Si un nouveau logo est uploadé
-    if (req.file) {
-      updateData.logo = `/uploads/partners/${req.file.filename}`;
-    }
-
-    const partner = await Partner.findByIdAndUpdate(
-      req.params.id,
-      updateData,
-      { new: true }
-    );
-
+    const partner = await Partner.findById(req.params.id);
     if (!partner) {
       return res.status(404).json({ message: 'Partenaire non trouvé' });
     }
+
+    // Si un nouveau logo est uploadé
+    if (req.file) {
+      // Supprimer l'ancien logo
+      if (partner.logo && partner.logo.startsWith('/api/files/')) {
+        await deleteFromGridFS(partner.logo);
+      }
+      updateData.logo = await uploadToGridFS(req.file.path, `partner-${Date.now()}-${req.file.originalname}`, req.file.mimetype);
+    }
+
+    Object.assign(partner, updateData);
+    await partner.save();
 
     res.json(partner);
   } catch (error) {

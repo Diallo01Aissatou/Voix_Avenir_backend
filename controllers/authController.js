@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const User = require('../models/User');
+const { uploadToGridFS } = require('../utils/gridfsUtils');
 
 // Configuration du transporteur d'e-mails (Lazy Singleton)
 let transporter;
@@ -182,12 +183,11 @@ exports.register = async (req, res) => {
       isApproved: role === 'mentore' ? false : true // Les mentores doivent être validées
     };
 
-    // Enregistrer la photo si fournie (Base64 ou URL existante)
+    // Enregistrer la photo si fournie (Base64 ou URL existante ou fichier)
     if (req.body.photo) {
       userPayload.photo = req.body.photo;
     } else if (req.file) {
-      // Fallback au cas où le frontend enverrait encore un fichier
-      userPayload.photo = `/uploads/${req.file.filename}`;
+      userPayload.photo = await uploadToGridFS(req.file.path, `photo-${Date.now()}-${req.file.originalname}`, req.file.mimetype);
     }
 
     // Créer l'utilisateur dans la base

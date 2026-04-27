@@ -4,6 +4,7 @@ const multer = require('multer');
 const path = require('path');
 const Event = require('../models/Event');
 const { protect, authorize } = require('../middlewares/auth');
+const { uploadToGridFS, deleteFromGridFS } = require('../utils/gridfsUtils');
 
 // Configuration multer pour les images
 const storage = multer.diskStorage({
@@ -50,7 +51,7 @@ router.post('/', protect, authorize('admin'), upload.single('image'), async (req
     };
     
     if (req.file) {
-      eventData.image = '/uploads/events/' + req.file.filename;
+      eventData.image = await uploadToGridFS(req.file.path, `event-${Date.now()}-${req.file.originalname}`, req.file.mimetype);
     }
     
     const event = await Event.create(eventData);
@@ -63,6 +64,10 @@ router.post('/', protect, authorize('admin'), upload.single('image'), async (req
 // Supprimer un événement (admin seulement)
 router.delete('/:id', protect, authorize('admin'), async (req, res) => {
   try {
+    const event = await Event.findById(req.params.id);
+    if (event && event.image && event.image.startsWith('/api/files/')) {
+      await deleteFromGridFS(event.image);
+    }
     await Event.findByIdAndDelete(req.params.id);
     res.json({ message: 'Événement supprimé avec succès' });
   } catch (error) {

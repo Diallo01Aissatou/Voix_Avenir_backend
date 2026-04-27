@@ -2,6 +2,7 @@ const Resource = require('../models/Resource');
 const { getGridFSBucket } = require('../config/gridfs');
 const mongoose = require('mongoose');
 const fs = require('fs');
+const { uploadToGridFS, deleteFromGridFS } = require('../utils/gridfsUtils');
 
 // Obtenir toutes les ressources actives
 exports.getResources = async (req, res) => {
@@ -23,84 +24,54 @@ exports.createResource = async (req, res) => {
 
     // Vérifier les champs obligatoires
     if (!resourceData.title || !resourceData.description || !resourceData.category || !resourceData.type) {
+      // Nettoyage préventif des fichiers si erreur
+      if (req.files) {
+        Object.values(req.files).flat().forEach(f => { try { fs.unlinkSync(f.path); } catch (e) {} });
+      }
       return res.status(400).json({
         message: 'Champs obligatoires manquants',
         required: ['title', 'description', 'category', 'type']
       });
     }
 
-    // Gérer l'image avec GridFS (Stockage permanent)
+    const bucket = getGridFSBucket();
+    if (!bucket) {
+      // Nettoyage si la DB n'est pas prête
+      if (req.files) {
+        Object.values(req.files).flat().forEach(f => { try { fs.unlinkSync(f.path); } catch (e) {} });
+      }
+      return res.status(503).json({ message: 'Le stockage permanent (GridFS) n\'est pas encore prêt. Veuillez réessayer dans quelques instants.' });
+    }
+
+    // Gérer l'image avec GridFS
     if (req.files && req.files.image) {
       const imageFile = req.files.image[0];
-      const bucket = getGridFSBucket();
-      
-      if (bucket) {
-        const uploadStream = bucket.openUploadStream(
-          `image-${Date.now()}-${imageFile.originalname}`,
-          { contentType: imageFile.mimetype }
-        );
-
-        await new Promise((resolve, reject) => {
-          fs.createReadStream(imageFile.path)
-            .pipe(uploadStream)
-            .on('error', reject)
-            .on('finish', resolve);
-        });
-
-        // Supprimer le fichier temporaire
-        try { fs.unlinkSync(imageFile.path); } catch (e) {}
-
-        resourceData.image = `/api/resources/serve-file/${uploadStream.id}`;
-        console.log('Image sauvegardée en GridFS:', resourceData.image);
-      } else {
-        // Fallback si GridFS n'est pas prêt (pas idéal mais évite le crash)
-        resourceData.image = `/uploads/${imageFile.filename}`;
-      }
+      resourceData.image = await uploadToGridFS(imageFile.path, `image-${Date.now()}-${imageFile.originalname}`, imageFile.mimetype);
+      console.log('Image sauvegardée définitivement en GridFS:', resourceData.image);
     }
 
     // Gérer le fichier de ressource avec GridFS
     if (req.files && req.files.resourceFile) {
       const file = req.files.resourceFile[0];
-      const bucket = getGridFSBucket();
-      
-      if (!bucket) {
-        throw new Error('Le stockage GridFS n\'est pas encore prêt.');
-      }
-
-      const uploadStream = bucket.openUploadStream(
-        `resource-${Date.now()}-${file.originalname}`,
-        { contentType: file.mimetype }
-      );
-
-      await new Promise((resolve, reject) => {
-        fs.createReadStream(file.path)
-          .pipe(uploadStream)
-          .on('error', reject)
-          .on('finish', resolve);
-      });
-
-      // Supprimer le fichier temporaire du disque après upload en GridFS
-      try { fs.unlinkSync(file.path); } catch (err) {}
-
-      // Stocker l'ID du fichier GridFS dans fileUrl
-      resourceData.fileUrl = `/api/resources/serve-file/${uploadStream.id}`;
-      console.log('Fichier de ressource sauvegardé en GridFS:', resourceData.fileUrl);
+      resourceData.fileUrl = await uploadToGridFS(file.path, `resource-${Date.now()}-${file.originalname}`, file.mimetype);
+      console.log('Fichier de ressource sauvegardé définitivement en GridFS:', resourceData.fileUrl);
     } else {
       console.log('Aucun fichier de ressource reçu');
     }
 
-    console.log('Données finales:', resourceData);
-
     const resource = await Resource.create(resourceData);
-    console.log('Ressource créée:', resource);
+    console.log('Ressource créée en base:', resource);
 
-    res.status(201).json({ message: 'Ressource ajoutée avec succès', resource });
+    res.status(201).json({ message: 'Ressource ajoutée avec succès et stockée en base de données', resource });
   } catch (error) {
     console.error('Erreur lors de la création de ressource:', error);
+    // Nettoyage en cas d'erreur critique
+    if (req.files) {
+      Object.values(req.files).flat().forEach(f => { try { fs.unlinkSync(f.path); } catch (e) {} });
+    }
     res.status(500).json({
-      message: 'Erreur serveur',
-      error: error.message,
-      details: error.stack
+      message: 'Erreur serveur lors de l\'enregistrement permanent',
+      error: error.message
     });
   }
 };
@@ -112,48 +83,37 @@ exports.updateResource = async (req, res) => {
     let resource = await Resource.findById(id);
 
     if (!resource) {
+      // Nettoyage si ressource non trouvée
+      if (req.files) {
+        Object.values(req.files).flat().forEach(f => { try { fs.unlinkSync(f.path); } catch (e) {} });
+      }
       return res.status(404).json({ message: 'Ressource non trouvée' });
     }
 
     const updateData = req.body;
     const bucket = getGridFSBucket();
 
-    // Gérer l'image si fournie
-    if (req.files && req.files.image) {
-      const imageFile = req.files.image[0];
-      const uploadStream = bucket.openUploadStream(
-        `image-${Date.now()}-${imageFile.originalname}`,
-        { contentType: imageFile.mimetype }
-      );
-
-      await new Promise((resolve, reject) => {
-        fs.createReadStream(imageFile.path)
-          .pipe(uploadStream)
-          .on('error', reject)
-          .on('finish', resolve);
-      });
-
-      try { fs.unlinkSync(imageFile.path); } catch (e) {}
-      updateData.image = `/api/resources/serve-file/${uploadStream.id}`;
+    if (!bucket) {
+      if (req.files) {
+        Object.values(req.files).flat().forEach(f => { try { fs.unlinkSync(f.path); } catch (e) {} });
+      }
+      return res.status(503).json({ message: 'Le stockage permanent (GridFS) n\'est pas encore prêt.' });
     }
 
-    // Gérer le fichier de ressource si fourni avec GridFS
+    // Nouvelle image ?
+    if (req.files && req.files.image) {
+      const imageFile = req.files.image[0];
+      // Supprimer l'ancienne image si elle existe
+      if (resource.image) await deleteFromGridFS(resource.image);
+      updateData.image = await uploadToGridFS(imageFile.path, `image-${Date.now()}-${imageFile.originalname}`, imageFile.mimetype);
+    }
+
+    // Nouveau fichier de ressource ?
     if (req.files && req.files.resourceFile) {
       const file = req.files.resourceFile[0];
-      const uploadStream = bucket.openUploadStream(
-        `resource-${Date.now()}-${file.originalname}`,
-        { contentType: file.mimetype }
-      );
-
-      await new Promise((resolve, reject) => {
-        fs.createReadStream(file.path)
-          .pipe(uploadStream)
-          .on('error', reject)
-          .on('finish', resolve);
-      });
-
-      try { fs.unlinkSync(file.path); } catch (e) {}
-      updateData.fileUrl = `/api/resources/serve-file/${uploadStream.id}`;
+      // Supprimer l'ancien fichier si il existe
+      if (resource.fileUrl) await deleteFromGridFS(resource.fileUrl);
+      updateData.fileUrl = await uploadToGridFS(file.path, `resource-${Date.now()}-${file.originalname}`, file.mimetype);
     }
 
     resource = await Resource.findByIdAndUpdate(id, updateData, {
@@ -161,9 +121,12 @@ exports.updateResource = async (req, res) => {
       runValidators: true
     });
 
-    res.json({ message: 'Ressource mise à jour avec succès', resource });
+    res.json({ message: 'Ressource mise à jour avec succès (Stockage permanent OK)', resource });
   } catch (error) {
     console.error('Erreur lors de la mise à jour de ressource:', error);
+    if (req.files) {
+      Object.values(req.files).flat().forEach(f => { try { fs.unlinkSync(f.path); } catch (e) {} });
+    }
     res.status(500).json({ message: 'Erreur serveur', error: error.message });
   }
 };
@@ -178,18 +141,8 @@ exports.deleteResource = async (req, res) => {
       const bucket = getGridFSBucket();
       // Optionnel : Supprimer les fichiers correspondants dans GridFS pour libérer de l'espace
       try {
-        if (resource.fileUrl && resource.fileUrl.includes('/serve-file/')) {
-          const fileId = resource.fileUrl.split('/').pop();
-          if (mongoose.Types.ObjectId.isValid(fileId)) {
-            await bucket.delete(new mongoose.Types.ObjectId(fileId));
-          }
-        }
-        if (resource.image && resource.image.includes('/serve-file/')) {
-          const imageId = resource.image.split('/').pop();
-          if (mongoose.Types.ObjectId.isValid(imageId)) {
-            await bucket.delete(new mongoose.Types.ObjectId(imageId));
-          }
-        }
+        if (resource.fileUrl) await deleteFromGridFS(resource.fileUrl);
+        if (resource.image) await deleteFromGridFS(resource.image);
       } catch (e) {
         console.warn('Erreur lors de la suppression des fichiers GridFS:', e.message);
       }
