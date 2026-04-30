@@ -229,13 +229,13 @@ exports.login = async (req, res) => {
     const user = await User.findOne({ email });
     if (!user) {
       console.log('Echec: Utilisateur non trouvé pour', email);
-      return res.status(400).json({ message: "Aucun compte n'est associé à cette adresse e-mail. Veuillez vérifier ou vous inscrire." });
+      return res.status(400).json({ message: "L'email ou le mot de passe est incorrect. Ces informations n'existent" });
     }
 
     const match = await bcrypt.compare(password, user.password);
     if (!match) {
       console.log('Echec: Mot de passe incorrect pour', email);
-      return res.status(400).json({ message: "Le mot de passe que vous avez saisi est incorrect." });
+      return res.status(400).json({ message: "L'email ou le mot de passe est incorrect. Ces informations n'existent" });
     }
 
     console.log('Succès: Connexion réussie pour', email);
