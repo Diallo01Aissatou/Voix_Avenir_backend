@@ -36,7 +36,7 @@ exports.getMentores = async (req, res) => {
     // Ajouter l'URL complète pour les photos
     const usersWithPhotoUrl = users.map(user => {
       const userObj = user.toObject();
-      if (userObj.photo && !userObj.photo.startsWith('http') && !userObj.photo.startsWith('data:') && !userObj.photo.startsWith('/api/')) {
+      if (userObj.photo && !userObj.photo.startsWith('http') && !userObj.photo.startsWith('data:') && !userObj.photo.startsWith('data:') && !userObj.photo.startsWith('/api/')) {
         const baseUrl = `${req.protocol}://${req.get('host')}`;
         const fileName = userObj.photo.split('/').pop();
         userObj.photo = `${baseUrl}/uploads/${fileName}`;
@@ -90,7 +90,7 @@ exports.getMyProfile = async (req, res) => {
 
     // URL complète si besoin (GridFS ou externe)
     const userObj = user.toObject();
-    if (userObj.photo && !userObj.photo.startsWith('http') && !userObj.photo.startsWith('data:') && !userObj.photo.startsWith('/api/')) {
+    if (userObj.photo && !userObj.photo.startsWith('http') && !userObj.photo.startsWith('data:') && !userObj.photo.startsWith('data:') && !userObj.photo.startsWith('/api/')) {
         const baseUrl = `${req.protocol}://${req.get('host')}`;
         userObj.photo = `${baseUrl}/uploads/${userObj.photo.split('/').pop()}`;
     }
@@ -155,7 +155,7 @@ exports.updateMyProfile = async (req, res) => {
 
     // URL complète si besoin (GridFS ou externe)
     const userObj = user.toObject();
-    if (userObj.photo && !userObj.photo.startsWith('http') && !userObj.photo.startsWith('data:') && !userObj.photo.startsWith('/api/')) {
+    if (userObj.photo && !userObj.photo.startsWith('http') && !userObj.photo.startsWith('data:') && !userObj.photo.startsWith('data:') && !userObj.photo.startsWith('/api/')) {
         const baseUrl = `${req.protocol}://${req.get('host')}`;
         userObj.photo = `${baseUrl}/uploads/${userObj.photo.split('/').pop()}`;
     }
@@ -185,7 +185,7 @@ exports.getAllUsers = async (req, res) => {
 
     const usersWithPhotoUrl = users.map(user => {
       const userObj = user.toObject();
-      if (userObj.photo && !userObj.photo.startsWith('http') && !userObj.photo.startsWith('data:') && !userObj.photo.startsWith('/api/')) {
+      if (userObj.photo && !userObj.photo.startsWith('http') && !userObj.photo.startsWith('data:') && !userObj.photo.startsWith('data:') && !userObj.photo.startsWith('/api/')) {
         const baseUrl = `${req.protocol}://${req.get('host')}`;
         const fileName = userObj.photo.split('/').pop();
         userObj.photo = `${baseUrl}/uploads/${fileName}`;
@@ -328,7 +328,7 @@ exports.searchMentors = async (req, res) => {
     // Ajouter l'URL complète pour les photos
     const usersWithPhotoUrl = users.map(user => {
       const userObj = user.toObject();
-      if (userObj.photo && !userObj.photo.startsWith('http') && !userObj.photo.startsWith('data:') && !userObj.photo.startsWith('/api/')) {
+      if (userObj.photo && !userObj.photo.startsWith('http') && !userObj.photo.startsWith('data:') && !userObj.photo.startsWith('data:') && !userObj.photo.startsWith('/api/')) {
         const baseUrl = `${req.protocol}://${req.get('host')}`;
         const fileName = userObj.photo.split('/').pop();
         userObj.photo = `${baseUrl}/uploads/${fileName}`;
@@ -429,7 +429,7 @@ exports.getPendingMentors = async (req, res) => {
 
     const mentorsWithPhoto = pendingMentors.map(user => {
       const userObj = user.toObject();
-      if (userObj.photo && !userObj.photo.startsWith('http') && !userObj.photo.startsWith('data:') && !userObj.photo.startsWith('/api/')) {
+      if (userObj.photo && !userObj.photo.startsWith('http') && !userObj.photo.startsWith('data:') && !userObj.photo.startsWith('data:') && !userObj.photo.startsWith('/api/')) {
         const baseUrl = `${req.protocol}://${req.get('host')}`;
         const fileName = userObj.photo.split('/').pop();
         userObj.photo = `${baseUrl}/uploads/${fileName}`;
