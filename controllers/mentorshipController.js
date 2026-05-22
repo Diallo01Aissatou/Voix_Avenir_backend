@@ -58,12 +58,29 @@ exports.getSentRequests = async (req, res) => {
       .populate('mentore', 'name photo profession expertise bio city availableDays startTime endTime')
       .sort({ createdAt: -1 });
 
+    // Fonction utilitaire pour corriger l'URL d'une photo
+    const fixPhotoUrl = (photo) => {
+      if (!photo) return photo;
+      // Cas Base64 corrompu par le backend (contient data:image quelque part)
+      if (photo.includes('data:image')) {
+        return photo.substring(photo.indexOf('data:image'));
+      }
+      // Déjà une URL complète ou du Base64 propre
+      if (photo.startsWith('http') || photo.startsWith('data:')) return photo;
+      // Construire l'URL complète
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      const fileName = photo.split('/').pop();
+      return `${baseUrl}/uploads/${fileName}`;
+    };
+
     // Ajouter l'URL complète pour les photos
     const requestsWithPhotoUrl = requests.map(request => {
       const requestObj = request.toObject();
-      if (requestObj.mentore?.photo && !requestObj.mentore.photo.startsWith('http') && !requestObj.mentore.photo.startsWith('data:')) {
-        const baseUrl = `${req.protocol}://${req.get('host')}`;
-        requestObj.mentore.photo = `${baseUrl}/uploads/${requestObj.mentore.photo.split('/').pop()}`;
+      if (requestObj.mentore?.photo) {
+        requestObj.mentore.photo = fixPhotoUrl(requestObj.mentore.photo);
+      }
+      if (requestObj.mentoree?.photo) {
+        requestObj.mentoree.photo = fixPhotoUrl(requestObj.mentoree.photo);
       }
       return requestObj;
     });
@@ -81,15 +98,25 @@ exports.getReceivedRequests = async (req, res) => {
       .populate('mentoree', 'name photo profession level city bio interests age availableDays startTime endTime')
       .sort({ createdAt: -1 });
 
+    // Fonction utilitaire pour corriger l'URL d'une photo
+    const fixPhotoUrl = (photo) => {
+      if (!photo) return photo;
+      if (photo.includes('data:image')) {
+        return photo.substring(photo.indexOf('data:image'));
+      }
+      if (photo.startsWith('http') || photo.startsWith('data:')) return photo;
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      const fileName = photo.split('/').pop();
+      return `${baseUrl}/uploads/${fileName}`;
+    };
+
     const requestsWithPhotoUrl = requests.map(request => {
       const requestObj = request.toObject();
       if (requestObj.mentoree?.photo) {
-        // Corriger l'URL de la photo
-        const photoPath = requestObj.mentoree.photo;
-        if (!photoPath.startsWith('http')) {
-          const baseUrl = `${req.protocol}://${req.get('host')}`;
-          requestObj.mentoree.photo = `${baseUrl}${photoPath.startsWith('/') ? photoPath : '/' + photoPath}`;
-        }
+        requestObj.mentoree.photo = fixPhotoUrl(requestObj.mentoree.photo);
+      }
+      if (requestObj.mentore?.photo) {
+        requestObj.mentore.photo = fixPhotoUrl(requestObj.mentore.photo);
       }
       return requestObj;
     });
