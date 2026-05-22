@@ -67,8 +67,12 @@ exports.getSentRequests = async (req, res) => {
       }
       // Déjà une URL complète ou du Base64 propre
       if (photo.startsWith('http') || photo.startsWith('data:')) return photo;
-      // Construire l'URL complète
+      // Chemin relatif (GridFS: /api/files/ID  ou  /uploads/filename)
       const baseUrl = `${req.protocol}://${req.get('host')}`;
+      if (photo.startsWith('/')) {
+        return `${baseUrl}${photo}`;
+      }
+      // Nom de fichier simple → dossier uploads
       const fileName = photo.split('/').pop();
       return `${baseUrl}/uploads/${fileName}`;
     };
@@ -105,7 +109,12 @@ exports.getReceivedRequests = async (req, res) => {
         return photo.substring(photo.indexOf('data:image'));
       }
       if (photo.startsWith('http') || photo.startsWith('data:')) return photo;
+      // Chemin relatif (GridFS: /api/files/ID  ou  /uploads/filename)
       const baseUrl = `${req.protocol}://${req.get('host')}`;
+      if (photo.startsWith('/')) {
+        return `${baseUrl}${photo}`;
+      }
+      // Nom de fichier simple → dossier uploads
       const fileName = photo.split('/').pop();
       return `${baseUrl}/uploads/${fileName}`;
     };
@@ -193,15 +202,18 @@ exports.getActiveMentorships = async (req, res) => {
       .sort({ updatedAt: -1 });
 
     // Ajouter l'URL complète pour les photos
+    const fixPhotoUrl = (photo) => {
+      if (!photo) return photo;
+      if (photo.includes('data:image')) return photo.substring(photo.indexOf('data:image'));
+      if (photo.startsWith('http') || photo.startsWith('data:')) return photo;
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      if (photo.startsWith('/')) return `${baseUrl}${photo}`;
+      return `${baseUrl}/uploads/${photo.split('/').pop()}`;
+    };
     const mentorshipsWithPhotoUrl = mentorships.map(mentorship => {
       const mentorshipObj = mentorship.toObject();
-      const baseUrl = `${req.protocol}://${req.get('host')}`;
-      if (mentorshipObj.mentore?.photo && !mentorshipObj.mentore.photo.startsWith('http') && !mentorshipObj.mentore.photo.startsWith('data:')) {
-        mentorshipObj.mentore.photo = `${baseUrl}/uploads/${mentorshipObj.mentore.photo.split('/').pop()}`;
-      }
-      if (mentorshipObj.mentoree?.photo && !mentorshipObj.mentoree.photo.startsWith('http') && !mentorshipObj.mentoree.photo.startsWith('data:')) {
-        mentorshipObj.mentoree.photo = `${baseUrl}/uploads/${mentorshipObj.mentoree.photo.split('/').pop()}`;
-      }
+      if (mentorshipObj.mentore?.photo) mentorshipObj.mentore.photo = fixPhotoUrl(mentorshipObj.mentore.photo);
+      if (mentorshipObj.mentoree?.photo) mentorshipObj.mentoree.photo = fixPhotoUrl(mentorshipObj.mentoree.photo);
       return mentorshipObj;
     });
 
@@ -351,15 +363,18 @@ exports.getSessions = async (req, res) => {
     });
 
     // Ajouter l'URL complète pour les photos
+    const fixPhotoUrl = (photo) => {
+      if (!photo) return photo;
+      if (photo.includes('data:image')) return photo.substring(photo.indexOf('data:image'));
+      if (photo.startsWith('http') || photo.startsWith('data:')) return photo;
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      if (photo.startsWith('/')) return `${baseUrl}${photo}`;
+      return `${baseUrl}/uploads/${photo.split('/').pop()}`;
+    };
     const sessionsWithPhotoUrl = sessions.map(session => {
       const sessionObj = { ...session };
-      const baseUrl = `${req.protocol}://${req.get('host')}`;
-      if (sessionObj.mentore?.photo && !sessionObj.mentore.photo.startsWith('http') && !sessionObj.mentore.photo.startsWith('data:')) {
-        sessionObj.mentore.photo = `${baseUrl}/uploads/${sessionObj.mentore.photo.split('/').pop()}`;
-      }
-      if (sessionObj.mentoree?.photo && !sessionObj.mentoree.photo.startsWith('http') && !sessionObj.mentoree.photo.startsWith('data:')) {
-        sessionObj.mentoree.photo = `${baseUrl}/uploads/${sessionObj.mentoree.photo.split('/').pop()}`;
-      }
+      if (sessionObj.mentore?.photo) sessionObj.mentore.photo = fixPhotoUrl(sessionObj.mentore.photo);
+      if (sessionObj.mentoree?.photo) sessionObj.mentoree.photo = fixPhotoUrl(sessionObj.mentoree.photo);
       return sessionObj;
     });
 
