@@ -61,17 +61,25 @@ exports.getSentRequests = async (req, res) => {
     // Fonction utilitaire pour corriger l'URL d'une photo
     const fixPhotoUrl = (photo) => {
       if (!photo) return photo;
-      if (photo.includes('data:image')) return photo.substring(photo.indexOf('data:image'));
-      if (photo.startsWith('http') || photo.startsWith('data:')) return photo;
+      let cleanPhoto = photo.trim();
+      if (cleanPhoto.startsWith('"') && cleanPhoto.endsWith('"')) {
+        cleanPhoto = cleanPhoto.slice(1, -1);
+      }
+      if (cleanPhoto.includes('data:image')) {
+        return cleanPhoto.substring(cleanPhoto.indexOf('data:image')).replace(/[\s\r\n"\\]/g, '');
+      }
+      if (cleanPhoto.startsWith('http') || cleanPhoto.startsWith('data:')) {
+        return cleanPhoto.startsWith('data:') ? cleanPhoto.replace(/[\s\r\n"\\]/g, '') : cleanPhoto;
+      }
       
       // Si la chaîne est très longue, c'est du base64 brut sans le préfixe
-      if (photo.length > 200) {
-        return `data:image/jpeg;base64,${photo}`;
+      if (cleanPhoto.length > 200) {
+        return `data:image/jpeg;base64,${cleanPhoto.replace(/[\s\r\n"\\]/g, '')}`;
       }
 
       const baseUrl = `${req.protocol}://${req.get('host')}`;
-      if (photo.startsWith('/')) return `${baseUrl}${photo}`;
-      return `${baseUrl}/uploads/${photo.split('/').pop()}`;
+      if (cleanPhoto.startsWith('/')) return `${baseUrl}${cleanPhoto}`;
+      return `${baseUrl}/uploads/${cleanPhoto.split('/').pop()}`;
     };
 
     // Ajouter l'URL complète pour les photos
@@ -102,16 +110,24 @@ exports.getReceivedRequests = async (req, res) => {
     // Fonction utilitaire pour corriger l'URL d'une photo
     const fixPhotoUrl = (photo) => {
       if (!photo) return photo;
-      if (photo.includes('data:image')) return photo.substring(photo.indexOf('data:image'));
-      if (photo.startsWith('http') || photo.startsWith('data:')) return photo;
+      let cleanPhoto = photo.trim();
+      if (cleanPhoto.startsWith('"') && cleanPhoto.endsWith('"')) {
+        cleanPhoto = cleanPhoto.slice(1, -1);
+      }
+      if (cleanPhoto.includes('data:image')) {
+        return cleanPhoto.substring(cleanPhoto.indexOf('data:image')).replace(/[\s\r\n"\\]/g, '');
+      }
+      if (cleanPhoto.startsWith('http') || cleanPhoto.startsWith('data:')) {
+        return cleanPhoto.startsWith('data:') ? cleanPhoto.replace(/[\s\r\n"\\]/g, '') : cleanPhoto;
+      }
       
-      if (photo.length > 200) {
-        return `data:image/jpeg;base64,${photo}`;
+      if (cleanPhoto.length > 200) {
+        return `data:image/jpeg;base64,${cleanPhoto.replace(/[\s\r\n"\\]/g, '')}`;
       }
 
       const baseUrl = `${req.protocol}://${req.get('host')}`;
-      if (photo.startsWith('/')) return `${baseUrl}${photo}`;
-      return `${baseUrl}/uploads/${photo.split('/').pop()}`;
+      if (cleanPhoto.startsWith('/')) return `${baseUrl}${cleanPhoto}`;
+      return `${baseUrl}/uploads/${cleanPhoto.split('/').pop()}`;
     };
 
     const requestsWithPhotoUrl = requests.map(request => {
@@ -199,12 +215,20 @@ exports.getActiveMentorships = async (req, res) => {
     // Ajouter l'URL complète pour les photos
     const fixPhotoUrl = (photo) => {
       if (!photo) return photo;
-      if (photo.includes('data:image')) return photo.substring(photo.indexOf('data:image'));
-      if (photo.startsWith('http') || photo.startsWith('data:')) return photo;
-      if (photo.length > 200) return `data:image/jpeg;base64,${photo}`;
+      let cleanPhoto = photo.trim();
+      if (cleanPhoto.startsWith('"') && cleanPhoto.endsWith('"')) {
+        cleanPhoto = cleanPhoto.slice(1, -1);
+      }
+      if (cleanPhoto.includes('data:image')) {
+        return cleanPhoto.substring(cleanPhoto.indexOf('data:image')).replace(/[\s\r\n"\\]/g, '');
+      }
+      if (cleanPhoto.startsWith('http') || cleanPhoto.startsWith('data:')) {
+        return cleanPhoto.startsWith('data:') ? cleanPhoto.replace(/[\s\r\n"\\]/g, '') : cleanPhoto;
+      }
+      if (cleanPhoto.length > 200) return `data:image/jpeg;base64,${cleanPhoto.replace(/[\s\r\n"\\]/g, '')}`;
       const baseUrl = `${req.protocol}://${req.get('host')}`;
-      if (photo.startsWith('/')) return `${baseUrl}${photo}`;
-      return `${baseUrl}/uploads/${photo.split('/').pop()}`;
+      if (cleanPhoto.startsWith('/')) return `${baseUrl}${cleanPhoto}`;
+      return `${baseUrl}/uploads/${cleanPhoto.split('/').pop()}`;
     };
     const mentorshipsWithPhotoUrl = mentorships.map(mentorship => {
       const mentorshipObj = mentorship.toObject();
@@ -361,12 +385,20 @@ exports.getSessions = async (req, res) => {
     // Ajouter l'URL complète pour les photos
     const fixPhotoUrl = (photo) => {
       if (!photo) return photo;
-      if (photo.includes('data:image')) return photo.substring(photo.indexOf('data:image'));
-      if (photo.startsWith('http') || photo.startsWith('data:')) return photo;
-      if (photo.length > 200) return `data:image/jpeg;base64,${photo}`;
+      let cleanPhoto = photo.trim();
+      if (cleanPhoto.startsWith('"') && cleanPhoto.endsWith('"')) {
+        cleanPhoto = cleanPhoto.slice(1, -1);
+      }
+      if (cleanPhoto.includes('data:image')) {
+        return cleanPhoto.substring(cleanPhoto.indexOf('data:image')).replace(/[\s\r\n"\\]/g, '');
+      }
+      if (cleanPhoto.startsWith('http') || cleanPhoto.startsWith('data:')) {
+        return cleanPhoto.startsWith('data:') ? cleanPhoto.replace(/[\s\r\n"\\]/g, '') : cleanPhoto;
+      }
+      if (cleanPhoto.length > 200) return `data:image/jpeg;base64,${cleanPhoto.replace(/[\s\r\n"\\]/g, '')}`;
       const baseUrl = `${req.protocol}://${req.get('host')}`;
-      if (photo.startsWith('/')) return `${baseUrl}${photo}`;
-      return `${baseUrl}/uploads/${photo.split('/').pop()}`;
+      if (cleanPhoto.startsWith('/')) return `${baseUrl}${cleanPhoto}`;
+      return `${baseUrl}/uploads/${cleanPhoto.split('/').pop()}`;
     };
     const sessionsWithPhotoUrl = sessions.map(session => {
       const sessionObj = { ...session };
