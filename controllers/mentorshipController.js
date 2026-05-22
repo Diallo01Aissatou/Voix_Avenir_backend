@@ -58,39 +58,20 @@ exports.getSentRequests = async (req, res) => {
       .populate('mentore', 'name photo profession expertise bio city availableDays startTime endTime')
       .sort({ createdAt: -1 });
 
-    // Fonction utilitaire pour corriger l'URL d'une photo
-    const fixPhotoUrl = (photo) => {
-      if (!photo) return photo;
-      let cleanPhoto = photo.trim();
-      if (cleanPhoto.startsWith('"') && cleanPhoto.endsWith('"')) {
-        cleanPhoto = cleanPhoto.slice(1, -1);
+    // Fonction utilitaire pour traiter la photo comme dans userController
+    const fixPhoto = (userObj) => {
+      if (userObj && userObj.photo && !userObj.photo.startsWith('http') && !userObj.photo.startsWith('data:') && !userObj.photo.startsWith('data:') && !userObj.photo.startsWith('/api/')) {
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        const fileName = userObj.photo.split('/').pop();
+        userObj.photo = `${baseUrl}/uploads/${fileName}`;
       }
-      if (cleanPhoto.includes('data:image')) {
-        return cleanPhoto.substring(cleanPhoto.indexOf('data:image')).replace(/[\s\r\n"\\]/g, '');
-      }
-      if (cleanPhoto.startsWith('http') || cleanPhoto.startsWith('data:')) {
-        return cleanPhoto.startsWith('data:') ? cleanPhoto.replace(/[\s\r\n"\\]/g, '') : cleanPhoto;
-      }
-      
-      // Si la chaîne est très longue, c'est du base64 brut sans le préfixe
-      if (cleanPhoto.length > 200) {
-        return `data:image/jpeg;base64,${cleanPhoto.replace(/[\s\r\n"\\]/g, '')}`;
-      }
-
-      const baseUrl = `${req.protocol}://${req.get('host')}`;
-      if (cleanPhoto.startsWith('/')) return `${baseUrl}${cleanPhoto}`;
-      return `${baseUrl}/uploads/${cleanPhoto.split('/').pop()}`;
     };
 
     // Ajouter l'URL complète pour les photos
     const requestsWithPhotoUrl = requests.map(request => {
       const requestObj = request.toObject();
-      if (requestObj.mentore?.photo) {
-        requestObj.mentore.photo = fixPhotoUrl(requestObj.mentore.photo);
-      }
-      if (requestObj.mentoree?.photo) {
-        requestObj.mentoree.photo = fixPhotoUrl(requestObj.mentoree.photo);
-      }
+      if (requestObj.mentore) fixPhoto(requestObj.mentore);
+      if (requestObj.mentoree) fixPhoto(requestObj.mentoree);
       return requestObj;
     });
 
@@ -107,37 +88,19 @@ exports.getReceivedRequests = async (req, res) => {
       .populate('mentoree', 'name photo profession level city bio interests age availableDays startTime endTime')
       .sort({ createdAt: -1 });
 
-    // Fonction utilitaire pour corriger l'URL d'une photo
-    const fixPhotoUrl = (photo) => {
-      if (!photo) return photo;
-      let cleanPhoto = photo.trim();
-      if (cleanPhoto.startsWith('"') && cleanPhoto.endsWith('"')) {
-        cleanPhoto = cleanPhoto.slice(1, -1);
+    // Fonction utilitaire pour traiter la photo
+    const fixPhoto = (userObj) => {
+      if (userObj && userObj.photo && !userObj.photo.startsWith('http') && !userObj.photo.startsWith('data:') && !userObj.photo.startsWith('data:') && !userObj.photo.startsWith('/api/')) {
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        const fileName = userObj.photo.split('/').pop();
+        userObj.photo = `${baseUrl}/uploads/${fileName}`;
       }
-      if (cleanPhoto.includes('data:image')) {
-        return cleanPhoto.substring(cleanPhoto.indexOf('data:image')).replace(/[\s\r\n"\\]/g, '');
-      }
-      if (cleanPhoto.startsWith('http') || cleanPhoto.startsWith('data:')) {
-        return cleanPhoto.startsWith('data:') ? cleanPhoto.replace(/[\s\r\n"\\]/g, '') : cleanPhoto;
-      }
-      
-      if (cleanPhoto.length > 200) {
-        return `data:image/jpeg;base64,${cleanPhoto.replace(/[\s\r\n"\\]/g, '')}`;
-      }
-
-      const baseUrl = `${req.protocol}://${req.get('host')}`;
-      if (cleanPhoto.startsWith('/')) return `${baseUrl}${cleanPhoto}`;
-      return `${baseUrl}/uploads/${cleanPhoto.split('/').pop()}`;
     };
 
     const requestsWithPhotoUrl = requests.map(request => {
       const requestObj = request.toObject();
-      if (requestObj.mentoree?.photo) {
-        requestObj.mentoree.photo = fixPhotoUrl(requestObj.mentoree.photo);
-      }
-      if (requestObj.mentore?.photo) {
-        requestObj.mentore.photo = fixPhotoUrl(requestObj.mentore.photo);
-      }
+      if (requestObj.mentore) fixPhoto(requestObj.mentore);
+      if (requestObj.mentoree) fixPhoto(requestObj.mentoree);
       return requestObj;
     });
 
