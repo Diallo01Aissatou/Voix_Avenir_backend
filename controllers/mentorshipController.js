@@ -61,20 +61,17 @@ exports.getSentRequests = async (req, res) => {
     // Fonction utilitaire pour corriger l'URL d'une photo
     const fixPhotoUrl = (photo) => {
       if (!photo) return photo;
-      // Cas Base64 corrompu par le backend (contient data:image quelque part)
-      if (photo.includes('data:image')) {
-        return photo.substring(photo.indexOf('data:image'));
-      }
-      // Déjà une URL complète ou du Base64 propre
+      if (photo.includes('data:image')) return photo.substring(photo.indexOf('data:image'));
       if (photo.startsWith('http') || photo.startsWith('data:')) return photo;
-      // Chemin relatif (GridFS: /api/files/ID  ou  /uploads/filename)
-      const baseUrl = `${req.protocol}://${req.get('host')}`;
-      if (photo.startsWith('/')) {
-        return `${baseUrl}${photo}`;
+      
+      // Si la chaîne est très longue, c'est du base64 brut sans le préfixe
+      if (photo.length > 200) {
+        return `data:image/jpeg;base64,${photo}`;
       }
-      // Nom de fichier simple → dossier uploads
-      const fileName = photo.split('/').pop();
-      return `${baseUrl}/uploads/${fileName}`;
+
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      if (photo.startsWith('/')) return `${baseUrl}${photo}`;
+      return `${baseUrl}/uploads/${photo.split('/').pop()}`;
     };
 
     // Ajouter l'URL complète pour les photos
@@ -105,18 +102,16 @@ exports.getReceivedRequests = async (req, res) => {
     // Fonction utilitaire pour corriger l'URL d'une photo
     const fixPhotoUrl = (photo) => {
       if (!photo) return photo;
-      if (photo.includes('data:image')) {
-        return photo.substring(photo.indexOf('data:image'));
-      }
+      if (photo.includes('data:image')) return photo.substring(photo.indexOf('data:image'));
       if (photo.startsWith('http') || photo.startsWith('data:')) return photo;
-      // Chemin relatif (GridFS: /api/files/ID  ou  /uploads/filename)
-      const baseUrl = `${req.protocol}://${req.get('host')}`;
-      if (photo.startsWith('/')) {
-        return `${baseUrl}${photo}`;
+      
+      if (photo.length > 200) {
+        return `data:image/jpeg;base64,${photo}`;
       }
-      // Nom de fichier simple → dossier uploads
-      const fileName = photo.split('/').pop();
-      return `${baseUrl}/uploads/${fileName}`;
+
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      if (photo.startsWith('/')) return `${baseUrl}${photo}`;
+      return `${baseUrl}/uploads/${photo.split('/').pop()}`;
     };
 
     const requestsWithPhotoUrl = requests.map(request => {
@@ -206,6 +201,7 @@ exports.getActiveMentorships = async (req, res) => {
       if (!photo) return photo;
       if (photo.includes('data:image')) return photo.substring(photo.indexOf('data:image'));
       if (photo.startsWith('http') || photo.startsWith('data:')) return photo;
+      if (photo.length > 200) return `data:image/jpeg;base64,${photo}`;
       const baseUrl = `${req.protocol}://${req.get('host')}`;
       if (photo.startsWith('/')) return `${baseUrl}${photo}`;
       return `${baseUrl}/uploads/${photo.split('/').pop()}`;
@@ -367,6 +363,7 @@ exports.getSessions = async (req, res) => {
       if (!photo) return photo;
       if (photo.includes('data:image')) return photo.substring(photo.indexOf('data:image'));
       if (photo.startsWith('http') || photo.startsWith('data:')) return photo;
+      if (photo.length > 200) return `data:image/jpeg;base64,${photo}`;
       const baseUrl = `${req.protocol}://${req.get('host')}`;
       if (photo.startsWith('/')) return `${baseUrl}${photo}`;
       return `${baseUrl}/uploads/${photo.split('/').pop()}`;
