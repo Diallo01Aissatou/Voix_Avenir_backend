@@ -202,7 +202,7 @@ app.use('/api/contact', contactRoutes);
 
 // Route universelle pour servir les fichiers depuis GridFS
 app.get('/api/files/:id', resourceController.serveFile);
-app.get('/uploads/*', (req, res) => {
+app.get(/^\/uploads\/.*/, (req, res) => {
   res.status(404).json({ 
     message: "Ce fichier local n'est plus disponible car le serveur a redémarré.",
     action: "Veuillez ré-uploader ce fichier via le panneau d'administration pour qu'il soit stocké de façon permanente."
