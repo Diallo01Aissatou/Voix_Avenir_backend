@@ -33,13 +33,30 @@ exports.getMentores = async (req, res) => {
       .select('name profession city expertise bio photo role availableDays startTime endTime')
       .sort({ createdAt: -1 });
 
+    // Fonction utilitaire robuste pour la photo
+    const fixPhotoUrl = (photo) => {
+      if (!photo) return photo;
+      let cleanPhoto = photo.trim();
+      if (cleanPhoto.startsWith('"') && cleanPhoto.endsWith('"')) {
+        cleanPhoto = cleanPhoto.slice(1, -1);
+      }
+      if (cleanPhoto.includes('data:image')) {
+        return cleanPhoto.substring(cleanPhoto.indexOf('data:image')).replace(/[\s\r\n"\\]/g, '');
+      }
+      if (cleanPhoto.startsWith('http') || cleanPhoto.startsWith('data:')) {
+        return cleanPhoto.startsWith('data:') ? cleanPhoto.replace(/[\s\r\n"\\]/g, '') : cleanPhoto;
+      }
+      if (cleanPhoto.length > 200) return `data:image/jpeg;base64,${cleanPhoto.replace(/[\s\r\n"\\]/g, '')}`;
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      if (cleanPhoto.startsWith('/')) return `${baseUrl}${cleanPhoto}`;
+      return `${baseUrl}/uploads/${cleanPhoto.split('/').pop()}`;
+    };
+
     // Ajouter l'URL complète pour les photos
     const usersWithPhotoUrl = users.map(user => {
       const userObj = user.toObject();
-      if (userObj.photo && !userObj.photo.startsWith('http') && !userObj.photo.startsWith('data:') && !userObj.photo.startsWith('data:') && !userObj.photo.startsWith('/api/')) {
-        const baseUrl = `${req.protocol}://${req.get('host')}`;
-        const fileName = userObj.photo.split('/').pop();
-        userObj.photo = `${baseUrl}/uploads/${fileName}`;
+      if (userObj.photo) {
+        userObj.photo = fixPhotoUrl(userObj.photo);
       }
       return userObj;
     });
