@@ -461,7 +461,7 @@ exports.getPendingMentors = async (req, res) => {
   }
 };
 
-// Rejeter un mentor (Admin) - désactive le compte
+// Rejeter un mentor (Admin) - supprime le compte et envoie un e-mail
 exports.rejectMentor = async (req, res) => {
   try {
     const { reason } = req.body;
@@ -469,26 +469,49 @@ exports.rejectMentor = async (req, res) => {
     if (!user) return res.status(404).json({ message: 'Utilisateur non trouvé' });
     if (user.role !== 'mentore') return res.status(400).json({ message: 'Cet utilisateur n\'est pas un mentor' });
 
-    user.isApproved = false;
-    user.verified = false; // Désactiver le compte
-    await user.save();
-
-    // Notifier le mentor du rejet
+    // 1. Envoyer l'email de refus
+    const sendEmail = require('../utils/emailService');
+    const rejectionReason = reason ? `<p><strong>Raison de notre décision :</strong> ${reason}</p>` : '';
+    
     try {
-      const Notification = require('../models/Notification');
-      await Notification.create({
-        recipient: user._id,
-        type: 'mentor_rejected',
-        title: 'Votre profil mentor n\'a pas été approuvé',
-        message: reason
-          ? `Raison : ${reason}. Vous pouvez mettre à jour votre profil et soumettre à nouveau.`
-          : 'Votre profil ne correspond pas encore à nos critères. Veuillez mettre à jour votre expertise et votre parcours.'
+      await sendEmail({
+        to: user.email,
+        subject: "Voix d'Avenir - Refus de votre candidature de mentorat",
+        html: `
+          <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+            <h2 style="color: #c026d3; text-align: center;">Candidature non retenue</h2>
+            <p>Bonjour <strong>${user.name}</strong>,</p>
+            <p>Nous vous remercions très sincèrement pour l'intérêt que vous portez à <strong>Voix d'Avenir</strong> et pour le temps que vous avez consacré à soumettre votre candidature en tant que mentore.</p>
+            <p>Après un examen attentif de votre profil par notre équipe, nous avons le regret de vous informer que votre candidature n'a pas été retenue pour le moment.</p>
+            ${rejectionReason}
+            <p>Par souci de transparence et conformément à notre politique de confidentialité, nous tenons à vous informer que <strong>votre compte et toutes vos données personnelles ont été immédiatement et définitivement supprimés</strong> de notre base de données.</p>
+            <p>Nous vous souhaitons une excellente continuation et restons à votre entière disposition pour toute question.</p>
+            <br>
+            <p>Cordialement,</p>
+            <p><strong>L'équipe Voix d'Avenir</strong></p>
+          </div>
+        `
       });
-    } catch (notifErr) {
-      console.error('Erreur notification rejet:', notifErr);
+      console.log(`Email de refus envoyé à ${user.email}`);
+    } catch (emailErr) {
+      console.error('Erreur lors de l\'envoi de l\'email de refus:', emailErr);
+      // On continue vers la suppression même si l'e-mail a échoué
     }
 
-    res.json({ success: true, message: 'Mentor rejeté', user });
+    // 2. Supprimer la photo de profil (GridFS) si elle existe pour ne pas laisser de traces
+    if (user.photo && user.photo.startsWith('/api/files/')) {
+      const { deleteFromGridFS } = require('../utils/gridfsUtils');
+      try {
+        await deleteFromGridFS(user.photo);
+      } catch (err) {
+        console.error("Erreur suppression photo lors du refus:", err.message);
+      }
+    }
+
+    // 3. Supprimer complètement l'utilisateur de la base de données MongoDB
+    await user.deleteOne();
+
+    res.json({ success: true, message: 'Mentor refusé et compte supprimé définitivement.' });
   } catch (error) {
     console.error('Erreur rejectMentor:', error);
     res.status(500).json({ message: 'Erreur serveur', error: error.message });
