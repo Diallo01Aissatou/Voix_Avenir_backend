@@ -488,7 +488,8 @@ exports.getNotifications = async (req, res) => {
         title: 'Nouveau message',
         message: `Vous avez reçu ${group.count} message${group.count > 1 ? 's' : ''} de ${group.senderName}`,
         time: 'Récemment',
-        data: { messageId: group.lastMessage._id }
+        createdAt: group.lastMessage.createdAt || new Date(),
+        data: { messageId: group.lastMessage._id, createdAt: group.lastMessage.createdAt || new Date() }
       });
     });
 
@@ -502,6 +503,12 @@ exports.getNotifications = async (req, res) => {
         createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } // Dernières 24h
       });
 
+      const latestRequest = await MentorshipRequest.findOne({
+        mentore: userId,
+        status: 'pending',
+        createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+      }).sort({ createdAt: -1 });
+
       if (newRequests > 0) {
         notifications.push({
           id: 'new_requests',
@@ -509,8 +516,9 @@ exports.getNotifications = async (req, res) => {
           title: 'Nouvelles demandes',
           message: `${newRequests} nouvelle${newRequests > 1 ? 's' : ''} demande${newRequests > 1 ? 's' : ''} de mentorat`,
           time: 'Aujourd\'hui',
+          createdAt: latestRequest ? latestRequest.createdAt : new Date(),
           count: newRequests,
-          data: { status: 'pending' }
+          data: { status: 'pending', createdAt: latestRequest ? latestRequest.createdAt : new Date() }
         });
       }
 
@@ -542,7 +550,8 @@ exports.getNotifications = async (req, res) => {
             message: 'Séance de mentorat dans moins de 2 heures',
             time: 'Bientôt',
             sessionId: session._id,
-            data: { status: 'confirmed' }
+            createdAt: session.updatedAt || session.createdAt || new Date(),
+            data: { status: 'confirmed', createdAt: session.updatedAt || session.createdAt || new Date() }
           });
         }
       });
@@ -566,7 +575,8 @@ exports.getNotifications = async (req, res) => {
             ? `Votre demande avec ${request.mentore?.name || 'votre mentor'} a été acceptée.`
             : `Votre demande avec ${request.mentore?.name || 'votre mentor'} a été refusée.`,
           time: 'Récemment',
-          data: { status: request.status, requestId: request._id }
+          createdAt: request.updatedAt || request.createdAt || new Date(),
+          data: { status: request.status, requestId: request._id, createdAt: request.updatedAt || request.createdAt || new Date() }
         });
       });
 
@@ -597,7 +607,8 @@ exports.getNotifications = async (req, res) => {
             message: 'Séance de mentorat dans moins de 2 heures',
             time: 'Bientôt',
             sessionId: session._id,
-            data: { status: 'confirmed' }
+            createdAt: session.updatedAt || session.createdAt || new Date(),
+            data: { status: 'confirmed', createdAt: session.updatedAt || session.createdAt || new Date() }
           });
         }
       });

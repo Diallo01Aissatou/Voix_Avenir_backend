@@ -1,3 +1,7 @@
+// Configuration des DNS pour la résolution MongoDB Atlas localement
+const dns = require('dns');
+dns.setServers(['8.8.8.8', '8.8.4.4']);
+
 require('dotenv').config();
 const express = require('express');
 const http = require('http');
